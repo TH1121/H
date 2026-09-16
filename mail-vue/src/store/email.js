@@ -50,6 +50,20 @@ export const useEmailStore = defineStore('email', {
                 if (currentId && item.emailId === currentId) {
                     this.contentData.email = item
                 }
+
+                // 同步已发送列表的对方已读状态
+                const scrolls = [this.emailScroll, this.starScroll, this.sendScroll]
+                for (const scroll of scrolls) {
+                    const row = scroll?.emailList?.find(e => e.emailId === item.emailId)
+                    if (!row) continue
+                    if (item.opened != null) row.opened = item.opened
+                    if (item.toName != null) row.toName = item.toName
+                    if (item.toEmail != null) row.toEmail = item.toEmail
+                    if (item.recipient != null) row.recipient = item.recipient
+                    if (typeof scroll.handleList === 'function') {
+                        scroll.handleList([row])
+                    }
+                }
             }
         },
         toContentEmail(email) {

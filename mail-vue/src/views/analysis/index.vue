@@ -185,17 +185,26 @@ const emailColumnData = {
   daysData: []
 }
 
-const topic = computed(() => ({
-  color: uiStore.dark ? '#E5EAF3' : '#303133',
-  background: uiStore.dark ? '#141414' : '#FFFFFF',
-  borderColor: uiStore.dark ? '#141414' : '#FFFFFF',
-  scaleLineColor: uiStore.dark ? '#636466' : '#CDD0D6',
-  crossColor: uiStore.dark ? '#8D9095' : '#A8ABB2',
-  axisColor: uiStore.dark ? '#A3A6AD' : '#909399',
-  splitLineColor: uiStore.dark ? '#58585B' : '#D4D7DE',
-  gaugeSplitLine: uiStore.dark ? '#CFD3DC' : '#606266',
-  containerBackground: uiStore.dark ? '#6C6E72' : '#E6EBF8'
-}))
+const topic = computed(() => {
+  const styles = getComputedStyle(document.documentElement)
+  const read = (name, fallback) => styles.getPropertyValue(name).trim() || fallback
+  return {
+    color: uiStore.dark ? '#E2E8F0' : '#1E293B',
+    background: read('--surface-color', uiStore.dark ? '#17181C' : '#FFFFFF'),
+    borderColor: read('--surface-color', uiStore.dark ? '#17181C' : '#FFFFFF'),
+    scaleLineColor: read('--dark-border', uiStore.dark ? '#2A2C33' : '#E5E7EB'),
+    crossColor: read('--secondary-text-color', uiStore.dark ? '#94A3B8' : '#64748B'),
+    axisColor: read('--secondary-text-color', uiStore.dark ? '#94A3B8' : '#64748B'),
+    splitLineColor: read('--light-border', uiStore.dark ? '#2A2C33' : '#E5E7EB'),
+    gaugeSplitLine: read('--regular-text-color', uiStore.dark ? '#CBD5E1' : '#4B5563'),
+    containerBackground: read('--base-fill', uiStore.dark ? '#1C1D22' : '#EEF1F6'),
+    chart1: read('--chart-1', '#2563EB'),
+    chart2: read('--chart-2', '#0EA5E9'),
+    chart3: read('--chart-3', '#14B8A6'),
+    chart4: read('--chart-4', '#F59E0B'),
+    chart5: read('--chart-5', '#6366F1'),
+  }
+})
 let daySendTotal = 0
 let leaveWidth = 0
 let senderPie = null
@@ -376,7 +385,7 @@ function createSenderPie() {
         labelLine: {
           show: true
         },
-        color: ['#3CB2FF', '#13DEB9', '#FBBF24', '#FF7F50', '#BAE6FD', '#C084FC'] // 添加符合主题的配色
+        color: [topic.value.chart2, topic.value.chart3, topic.value.chart4, '#F97316', topic.value.chart1, topic.value.chart5]
       }
     ]
   }
@@ -503,22 +512,22 @@ function createIncreaseLine() {
         smooth: 0.1,
         symbol: 'none',
         lineStyle: {
-          color: '#1D84FF',
+          color: topic.value.chart1,
           width: 2.5
         },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             {
               offset: 0,
-              color: 'rgba(29, 132, 255, 0.3)'
+              color: 'rgba(37, 99, 235, 0.28)'
             },
             {
               offset: 1,
-              color: 'rgba(29, 132, 255, 0.03)'
+              color: 'rgba(37, 99, 235, 0.03)'
             }
           ])
         },
-        color: ['#1D84FF'],
+        color: [topic.value.chart1],
       }
     ]
   };
@@ -626,7 +635,7 @@ function createEmailColumnChart() {
         },
         data: emailColumnData.receiveData,
         itemStyle: {
-          color: '#3CB2FF',
+          color: topic.value.chart2,
         }
       },
       {
@@ -641,7 +650,7 @@ function createEmailColumnChart() {
         },
         data: emailColumnData.sendData,
         itemStyle: {
-          color: '#13deb9',
+          color: topic.value.chart3,
         }
       }
     ]
@@ -671,13 +680,13 @@ function createSendGauge() {
         show: true,
         roundCap: true,
         itemStyle: {
-          color: '#3CB2FF'
+          color: topic.value.chart2
         }
       },
       // 指针颜色（新增）
       pointer: {
         itemStyle: {
-          color: '#3CB2FF'
+          color: topic.value.chart2
         }
       },
       axisLabel: {
@@ -716,7 +725,7 @@ function createSendGauge() {
         }
       }]
     }],
-    color: ['#3CB2FF']
+    color: [topic.value.chart2]
   };
   sendGauge.setOption(option);
 }
@@ -777,9 +786,9 @@ function createSendGauge() {
     }
 
     .number-item {
-      background: var(--el-bg-color);
-      border-radius: 8px;
-      border: 1px solid var(--el-border-color);
+      background: var(--surface-color);
+      border-radius: 12px;
+      border: 1px solid var(--light-border);
       padding: 21px 20px;
 
       .top {
@@ -863,9 +872,9 @@ function createSendGauge() {
     }
 
     .picture-item {
-      background: var(--el-bg-color);
-      border-radius: 8px;
-      border: 1px solid var(--el-border-color);
+      background: var(--surface-color);
+      border-radius: 12px;
+      border: 1px solid var(--light-border);
 
       .source-button {
         padding-right: 15px;
@@ -903,9 +912,9 @@ function createSendGauge() {
     }
 
     .picture-cs-item {
-      background: var(--el-bg-color);
-      border-radius: 8px;
-      border: 1px solid var(--el-border-color);
+      background: var(--surface-color);
+      border-radius: 12px;
+      border: 1px solid var(--light-border);
 
       .send-count {
         height: 350px;

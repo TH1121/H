@@ -272,11 +272,12 @@ const handleDelete = () => {
 }
 
 .header-actions {
-  padding: 9px 15px 8px;
+  padding: 10px 16px;
   display: flex;
   align-items: center;
   gap: 20px;
-  box-shadow: var(--header-actions-border);
+  background: var(--surface-color);
+  box-shadow: inset 0 -1px 0 0 var(--light-border);
   font-size: 18px;
   .star {
     display: flex;

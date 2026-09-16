@@ -465,7 +465,14 @@ function openReply(email) {
 
   email.subject = email.subject || ''
 
-  form.receiveEmail.push(email.sendEmail)
+  if (email.type === 1) {
+    const recipients = getSentRecipients(email)
+    if (recipients.length > 0) {
+      form.receiveEmail.push(...recipients)
+    }
+  } else {
+    form.receiveEmail.push(email.sendEmail)
+  }
   form.subject = (
       email.subject.startsWith('Re:') ||
       email.subject.startsWith('Re：') ||
@@ -498,6 +505,23 @@ function openReply(email) {
     })
   })
 
+}
+
+function getSentRecipients(email) {
+  const list = []
+  try {
+    const recipient = typeof email.recipient === 'string' ? JSON.parse(email.recipient || '[]') : (email.recipient || [])
+    if (Array.isArray(recipient)) {
+      recipient.forEach(item => {
+        const address = item?.address || item
+        if (address && !list.includes(address)) list.push(address)
+      })
+    }
+  } catch (e) {}
+  if (list.length === 0 && email.toEmail) {
+    list.push(email.toEmail)
+  }
+  return list
 }
 
 function formatImage(content) {
@@ -628,13 +652,13 @@ function close() {
   justify-content: center;
 
   .write-box {
-    background: var(--el-bg-color);
+    background: var(--surface-color);
     width: min(1367px, calc(100% - 80px));
-    box-shadow: var(--el-box-shadow-light);
-    border: 1px solid var(--el-border-color-light);
+    box-shadow: 0 16px 48px rgba(15, 23, 42, 0.18);
+    border: 1px solid var(--light-border);
     transition: var(--el-transition-duration);
-    padding: 15px;
-    border-radius: 8px;
+    padding: 16px;
+    border-radius: 12px;
     display: grid;
     grid-template-rows: auto 1fr;
     overflow: hidden;

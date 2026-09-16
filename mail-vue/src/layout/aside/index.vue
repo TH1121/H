@@ -2,10 +2,10 @@
   <el-scrollbar class="scroll">
     <div>
       <div class="title" >
-        <Icon icon="mdi:email-outline" width="24" height="24" />
+        <Icon icon="mdi:email-outline" width="22" height="22" />
         <div>{{settingStore.settings.title}}</div>
       </div>
-      <el-menu :collapse="false" text-color="#fff" active-text-color="#fff" style="margin-top: 10px">
+      <el-menu :collapse="false" :text-color="'var(--aside-text)'" :active-text-color="'var(--aside-text)'" style="margin-top: 8px">
         <el-menu-item @click="router.push({name: 'email'})" index="email"
                       :class="route.meta.name === 'email' ? 'choose-item' : ''">
           <Icon icon="hugeicons:mailbox-01" width="20" height="20" />
@@ -83,21 +83,23 @@ const route = useRoute();
 <style lang="scss" scoped>
 
 .title {
-  margin: 15px 10px;
-  height: 45px;
-  border-radius: 6px;
+  margin: 16px 12px 12px;
+  height: 44px;
+  border-radius: 10px;
   display: flex;
   position: relative;
-  font-size: 16px;
-  font-weight: bold;
+  font-size: 15px;
+  font-weight: 600;
   align-items: center;
-  justify-content: center;
-  gap: 5px;
-  color: #ffffff;
-  background: linear-gradient(135deg, #1890ff, #3a80dd);
-  transition: all 0.3s ease;
-  max-width: 240px;
-  padding: 0 10px;
+  justify-content: flex-start;
+  gap: 10px;
+  color: var(--aside-text);
+  background: var(--aside-menu-active-background);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+  max-width: 236px;
+  padding: 0 14px;
+
   > div {
     overflow: hidden;
     white-space: nowrap;
@@ -108,41 +110,38 @@ const route = useRoute();
   :deep(.el-icon) {
     flex-shrink: 0;
     font-size: 20px;
+    color: var(--aside-brand);
   }
-
-  .user-right-icon {
-    align-self: center;
-    position: absolute;
-    font-size: 12px;
-    right: 8px;
-    color: #ffffff;
-  }
-
 }
 
 
 .manage-title {
-  margin-top: 10px;
-  padding-left: 20px;
-  color: #fff;
+  margin: 18px 12px 8px;
+  padding-left: 12px;
+  color: var(--aside-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .el-menu-item {
-  margin: 3px 10px !important;
-  border-radius: 6px;
-  height: 36px;
-  padding: 10px !important;
+  margin: 2px 10px !important;
+  border-radius: 8px;
+  height: 38px;
+  padding: 10px 12px !important;
+  color: var(--aside-text) !important;
 }
 
 .choose-item {
-  font-weight: 400;
+  font-weight: 500;
   background: var(--aside-menu-active-background) !important;
-  backdrop-filter: blur(4px);
+  box-shadow: inset 3px 0 0 0 var(--aside-brand);
 }
 
 @media (hover: hover) {
   .el-menu-item:hover {
-    background: rgba(255, 255, 255, 0.08) !important;
+    background: var(--aside-hover) !important;
   }
 }
 
@@ -170,10 +169,10 @@ const route = useRoute();
 
 :deep(.el-divider__text) {
   background: var(--aside-backgound);
-  color: #FFFFFF;
+  color: var(--aside-muted);
 }
 
 .scroll {
-
+  background: var(--aside-backgound);
 }
 </style>

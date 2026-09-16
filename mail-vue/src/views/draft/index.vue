@@ -12,6 +12,7 @@
                :showStar="false"
                @delete-draft="deleteDraft"
                :type="'draft'"
+               :show-quick-actions="false"
   >
     <template #name="props">
       <span class="send-email">{{ props.email.receiveEmail?.join(',') || '(' + $t('noRecipient') + ')' }}</span>

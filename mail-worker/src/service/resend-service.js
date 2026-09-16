@@ -38,6 +38,14 @@ const resendService = {
 			params.message = body.data.failed.reason
 		}
 
+		if (body.type === 'email.opened') {
+			const emailRow = await emailService.markEmailOpened(c, body.data.email_id)
+			if (!emailRow) {
+				throw new BizError('更新邮件已读状态失败');
+			}
+			return
+		}
+
 		const emailRow = await emailService.updateEmailStatus(c, params)
 
 		if (!emailRow) {

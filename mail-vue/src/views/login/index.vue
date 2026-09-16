@@ -1,11 +1,7 @@
 <template>
   <div id="login-box" :style=" background ? 'background: var(--el-bg-color)' : ''" v-loading="oauthLoading" element-loading-text="登录中...">
     <div id="background-wrap" v-if="!settingStore.settings.background">
-      <div class="x1 cloud"></div>
-      <div class="x2 cloud"></div>
-      <div class="x3 cloud"></div>
-      <div class="x4 cloud"></div>
-      <div class="x5 cloud"></div>
+      <div class="login-ambiance"></div>
     </div>
     <div v-else :style="background"></div>
     <div class="form-wrapper">
@@ -145,7 +141,7 @@
       </div>
     </el-dialog>
     <a v-show="settingStore.settings.projectLink" class="github" href="https://github.com/maillab/cloud-mail">
-      <Icon icon="mingcute:github-line" color="#1890ff" width="20" height="20" />
+      <Icon icon="mingcute:github-line" color="var(--el-color-primary)" width="20" height="20" />
     </a>
   </div>
 </template>
@@ -647,24 +643,29 @@ function submitRegister() {
 
 .container {
   background: v-bind(loginOpacity);
-  padding-left: 40px;
-  padding-right: 40px;
+  backdrop-filter: blur(16px);
+  padding-left: 44px;
+  padding-right: 44px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   width: 450px;
   height: 100%;
   border-left: 1px solid var(--login-border);
-  box-shadow: var(--el-box-shadow-light);
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.18);
   @media (max-width: 1024px) {
-    padding: 20px 18px;
+    padding: 28px 22px;
     width: 384px;
     margin-left: 18px;
+    border-radius: 16px;
+    height: auto;
+    max-height: calc(100% - 36px);
+    border: 1px solid var(--login-border);
   }
   @media (max-width: 767px) {
     border: 1px solid var(--login-border);
-    padding: 20px 18px;
-    border-radius: 6px;
+    padding: 28px 20px;
+    border-radius: 16px;
     height: fit-content;
     width: 100%;
     margin-right: 18px;
@@ -672,20 +673,29 @@ function submitRegister() {
   }
 
   .btn {
-    height: 36px;
+    height: 40px;
     width: 100%;
-    border-radius: 6px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+
+  .btn:not(.el-button--primary) {
+    background: transparent;
+    border: 1px solid var(--base-border-color);
+    color: var(--el-text-color-primary);
   }
 
   .form-desc {
-    margin-top: 5px;
-    margin-bottom: 18px;
+    margin-top: 8px;
+    margin-bottom: 24px;
     color: var(--form-desc-color);
+    font-size: 14px;
   }
 
   .form-title {
-    font-weight: bold;
-    font-size: 22px !important;
+    font-weight: 700;
+    font-size: 26px !important;
+    letter-spacing: -0.02em;
   }
 
   .switch {
@@ -695,26 +705,28 @@ function submitRegister() {
     span {
       color: var(--login-switch-color);
       cursor: pointer;
+      font-weight: 500;
     }
   }
 
   :deep(.el-input__wrapper) {
-    border-radius: 6px;
-    background: var(--el-bg-color);
+    border-radius: 10px;
+    background: var(--surface-color);
+    box-shadow: 0 0 0 1px var(--base-border-color) inset;
   }
 
   .email-input :deep(.el-input__wrapper) {
-    border-radius: 6px 0 0 6px;
-    background: var(--el-bg-color);
+    border-radius: 10px 0 0 10px;
+    background: var(--surface-color);
   }
 
   .el-input {
-    height: 38px;
+    height: 42px;
     width: 100%;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
 
     :deep(.el-input__inner) {
-      height: 36px;
+      height: 40px;
     }
   }
 }
@@ -745,18 +757,17 @@ function submitRegister() {
 
 .github {
   position: fixed;
-  width: 35px;
-  height: 35px;
+  width: 36px;
+  height: 36px;
   display: flex;
   justify-content: center;
   align-items: center;
-  border-radius: 50%;
-  background: var(--el-bg-color);
-  bottom: 10px;
-  right: 10px;
+  border-radius: 10px;
+  background: var(--surface-color);
+  bottom: 14px;
+  right: 14px;
   z-index: 1000;
-  border: 1px solid var(--el-border-color-light);
-  box-shadow: var(--el-box-shadow-light);
+  border: 1px solid var(--light-border);
   cursor: pointer;
 }
 
@@ -764,8 +775,9 @@ function submitRegister() {
   padding: 0 !important;
   padding-left: 8px !important;
   padding-right: 4px !important;
-  background: var(--el-bg-color);
-  border-radius: 0 8px 8px 0;
+  background: var(--surface-color);
+  border-radius: 0 10px 10px 0;
+  box-shadow: 0 0 0 1px var(--base-border-color) inset;
 }
 
 :deep(.el-button+.el-button) {
@@ -790,14 +802,14 @@ function submitRegister() {
 }
 
 .custom-style .el-segmented {
-  --el-border-radius-base: 6px;
+  --el-border-radius-base: 8px;
   width: 180px;
 }
 
 
 #login-box {
-  background: linear-gradient(to bottom, #2980b9, #6dd5fa, #fff);
-  font: 100% Arial, sans-serif;
+  background: radial-gradient(1200px 700px at 20% 20%, #1E293B 0%, #0F172A 45%, #020617 100%);
+  font-family: inherit;
   height: 100%;
   margin: 0;
   padding: 0;
@@ -810,74 +822,16 @@ function submitRegister() {
 #background-wrap {
   height: 100%;
   z-index: 0;
-}
-
-@keyframes animateCloud {
-  0% {
-    margin-left: -500px;
-  }
-
-  100% {
-    margin-left: 100%;
-  }
-}
-
-.x1 {
-  animation: animateCloud 30s linear infinite;
-  transform: scale(0.65);
-}
-
-.x2 {
-  animation: animateCloud 15s linear infinite;
-  transform: scale(0.3);
-}
-
-.x3 {
-  animation: animateCloud 25s linear infinite;
-  transform: scale(0.5);
-}
-
-.x4 {
-  animation: animateCloud 13s linear infinite;
-  transform: scale(0.4);
-}
-
-.x5 {
-  animation: animateCloud 20s linear infinite;
-  transform: scale(0.55);
-}
-
-.cloud {
-  background: linear-gradient(to bottom, #fff 5%, #f1f1f1 100%);
-  border-radius: 100px;
-  box-shadow: 0 8px 5px rgba(0, 0, 0, 0.1);
-  height: 120px;
-  width: 350px;
   position: relative;
+  overflow: hidden;
 }
 
-.cloud:after,
-.cloud:before {
-  content: "";
+.login-ambiance {
   position: absolute;
-  background: #fff;
-  z-index: -1;
-}
-
-.cloud:after {
-  border-radius: 100px;
-  height: 100px;
-  left: 50px;
-  top: -50px;
-  width: 100px;
-}
-
-.cloud:before {
-  border-radius: 200px;
-  height: 180px;
-  width: 180px;
-  right: 50px;
-  top: -90px;
+  inset: 0;
+  background:
+    radial-gradient(600px 400px at 70% 30%, rgba(37, 99, 235, 0.28), transparent 70%),
+    radial-gradient(500px 360px at 15% 80%, rgba(14, 165, 233, 0.18), transparent 65%);
 }
 
 </style>

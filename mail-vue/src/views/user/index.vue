@@ -1111,12 +1111,13 @@ function adjustWidth() {
 }
 
 .header-actions {
-  padding: 9px 15px;
+  padding: 10px 16px;
   display: flex;
   gap: 15px;
   flex-wrap: wrap;
   align-items: center;
-  box-shadow: var(--header-actions-border);
+  background: var(--surface-color);
+  box-shadow: inset 0 -1px 0 0 var(--light-border);
   font-size: 18px;
 
   .search-input {
@@ -1169,7 +1170,7 @@ function adjustWidth() {
   gap: 10px;
   .details-item-title {
     white-space: pre;
-    color: #909399;
+    color: var(--secondary-text-color);
     font-weight: bold;
     padding-right: 10px;
   }
@@ -1319,7 +1320,7 @@ function adjustWidth() {
 }
 
 :deep(.el-table th.el-table__cell>.cell.highlight) {
-  color: #909399;
+  color: var(--secondary-text-color);
 }
 
 :deep(.el-table__inner-wrapper:before) {

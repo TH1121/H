@@ -1836,10 +1836,10 @@ function editSetting(settingForm, refreshStatus = true) {
 }
 
 .settings-card {
-  background-color: var(--el-bg-color);
-  border-radius: 6px;
-  border: 1px solid var(--el-border-color);
-  transition: all 300ms;
+  background-color: var(--surface-color);
+  border-radius: 12px;
+  border: 1px solid var(--light-border);
+  transition: border-color 0.2s ease;
   overflow: hidden;
   max-width: 900px;
   width: 100%;
@@ -1848,9 +1848,9 @@ function editSetting(settingForm, refreshStatus = true) {
 
 .card-title {
   font-size: 15px;
-  font-weight: bold;
-  padding: 15px 20px 12px;
-  border-bottom: 1px solid var(--el-border-color);
+  font-weight: 600;
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid var(--light-border);
 }
 
 .card-content {

@@ -71,7 +71,7 @@ onBeforeUnmount(() => {
     left: 0;
     z-index: 101;
     height: 100%;
-    background: var(--el-bg-color);
+    background: var(--aside-backgound);
   }
 }
 
@@ -91,18 +91,19 @@ onBeforeUnmount(() => {
 
 .main-container {
   min-height: 100%;
-  background: var(--el-bg-color);
+  background: var(--page-background);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
 .el-main {
   padding: 0;
+  background: var(--page-background);
 }
 
 .el-header {
-  background: var(--el-bg-color);
-  border-bottom: solid 1px var(--el-border-color);
+  background: var(--surface-color);
+  border-bottom: solid 1px var(--light-border);
   padding: 0 0 0 0;
 }
 

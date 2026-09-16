@@ -228,7 +228,7 @@ function switchDark(nextIsDark, root) {
   root.setAttribute('class', nextIsDark ? 'dark' : '')
   const metaTag = document.getElementById('theme-color-meta');
   const isMobile =  !window.matchMedia("(pointer: fine) and (hover: hover)").matches;
-  metaTag.setAttribute('content', nextIsDark ? (isMobile ? '#141414' : '#000000') : (isMobile ? '#191A23' : '#F1F1F1'));
+  metaTag.setAttribute('content', nextIsDark ? (isMobile ? '#0A0B0E' : '#0E0F12') : (isMobile ? '#12141A' : '#F4F6F9'));
   uiStore.dark = nextIsDark
 }
 
@@ -378,13 +378,21 @@ function formatName(email) {
   .writer {
     width: 34px;
     height: 34px;
-    border-radius: 50%;
+    border-radius: 10px;
     color: #ffffff;
-    background: linear-gradient(135deg, #1890ff, #3a80dd);
-    transition: all 0.3s ease;
+    background: var(--el-color-primary);
+    transition: background 0.2s ease, transform 0.15s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+
+    &:hover {
+      background: var(--el-color-primary-dark-2);
+    }
+
+    &:active {
+      transform: scale(0.96);
+    }
 
     .writer-text {
       margin-left: 15px;
@@ -420,17 +428,20 @@ function formatName(email) {
 
   .icon-item {
     align-self: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    color: var(--regular-text-color);
+    transition: background 0.15s ease, color 0.15s ease;
   }
 
   .icon-item:hover {
     background: var(--base-fill);
+    color: var(--el-text-color-primary);
   }
 
   .notice {

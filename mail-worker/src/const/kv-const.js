@@ -5,7 +5,8 @@ const KvConst = {
 	ANALYSIS_ECHARTS: 'analysis_echarts:',
 	PUBLIC_KEY: "public_key:",
 	VERIFY_CODE: 'verify_code:',
-	VERIFY_CODE_RATE: 'verify_code_rate:'
+	VERIFY_CODE_RATE: 'verify_code_rate:',
+	OPEN_TRACK: 'open_track:'
 }
 
 export default KvConst;

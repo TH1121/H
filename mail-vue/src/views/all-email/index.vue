@@ -420,8 +420,10 @@ async function latest() {
 }
 
 :deep(.header-actions) {
-  padding-top: 8px;
-  padding-bottom: 8px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  background: var(--surface-color);
+  box-shadow: inset 0 -1px 0 0 var(--light-border);
 }
 
 .search-input {

@@ -261,6 +261,9 @@ const emailService = {
 			attachments = [] //附件
 		} = params;
 
+		const { recipients, receiveEmailList } = await this.buildRecipients(c, receiveEmail);
+		receiveEmail = receiveEmailList;
+
 		const { resendTokens, r2Domain, send, domainList } = await settingService.query(c);
 
 		let { imageDataList, html } = await attService.toImageUrlHtml(c, content);
@@ -356,6 +359,8 @@ const emailService = {
 		}
 
 		let sendResult = {};
+		const openTrackId = crypto.randomUUID();
+		html = this.injectOpenTrackPixel(c, html, openTrackId);
 
 		//存在站外邮箱时，如果配置了 Cloudflare Email Service 就优先使用，否则使用 Resend
 		if (!allInternal) {
@@ -412,14 +417,11 @@ const emailService = {
 		emailData.type = emailConst.type.SEND;
 		emailData.userId = userId;
 		emailData.resendEmailId = data?.id;
+		emailData.opened = 0;
 
-		const recipient = [];
-
-		receiveEmail.forEach(item => {
-			recipient.push({ address: item, name: '' });
-		});
-
-		emailData.recipient = JSON.stringify(recipient);
+		emailData.recipient = JSON.stringify(recipients);
+		emailData.toEmail = recipients[0]?.address || '';
+		emailData.toName = recipients[0]?.name || '';
 
 		if (sendType === 'reply') {
 			emailData.inReplyTo = emailRow.messageId;
@@ -433,6 +435,8 @@ const emailService = {
 
 		//保存到数据库并返回结果
 		const emailResult = await orm(c).insert(email).values(emailData).returning().get();
+
+		await c.env.kv.put(kvConst.OPEN_TRACK + openTrackId, String(emailResult.emailId), { expirationTtl: 60 * 60 * 24 * 180 });
 
 		//保存内嵌附件
 		if (imageDataList.length > 0) {
@@ -699,6 +703,10 @@ const emailService = {
 				emailValues.accountId = accountRow.accountId;
 				emailValues.type = emailConst.type.RECEIVE;
 				emailValues.status = emailConst.status.RECEIVE;
+				emailValues.opened = 0;
+				if (!emailValues.relation) {
+					emailValues.relation = `onsite-send:${sendEmailData.emailId}`;
+				}
 
 				const roleRow = roleList.find(roleRow => roleRow.userId === accountRow.userId);
 
@@ -876,6 +884,83 @@ const emailService = {
 			status: status,
 			message: message
 		}).where(eq(email.resendEmailId, resendEmailId)).returning().get();
+	},
+
+	markEmailOpened(c, resendEmailId) {
+		return orm(c).update(email).set({
+			opened: emailConst.opened.OPENED
+		}).where(eq(email.resendEmailId, resendEmailId)).returning().get();
+	},
+
+	async trackOpen(c, trackId) {
+		if (!trackId) return;
+		const emailId = Number(await c.env.kv.get(kvConst.OPEN_TRACK + trackId));
+		if (!emailId) return;
+		await orm(c).update(email).set({
+			opened: emailConst.opened.OPENED
+		}).where(eq(email.emailId, emailId)).run();
+	},
+
+	parseAddress(input) {
+		if (input && typeof input === 'object') {
+			return {
+				address: String(input.address || input.email || '').trim(),
+				name: String(input.name || '').trim()
+			};
+		}
+
+		const str = String(input || '').trim();
+		const matched = str.match(/^(.*)<([^>]+)>$/);
+		if (matched) {
+			return {
+				name: matched[1].replace(/^["'\s]+|["'\s]+$/g, ''),
+				address: matched[2].trim()
+			};
+		}
+
+		return { name: '', address: str };
+	},
+
+	async buildRecipients(c, receiveEmail = []) {
+		const list = Array.isArray(receiveEmail) ? receiveEmail : [receiveEmail];
+		const receiveEmailList = [];
+		const recipients = [];
+
+		for (const item of list) {
+			const parsed = this.parseAddress(item);
+			if (!parsed.address) continue;
+
+			let name = parsed.name;
+			if (!name) {
+				const accountRow = await accountService.selectByEmailIncludeDel(c, parsed.address);
+				if (accountRow && accountRow.isDel !== isDel.DELETE && accountRow.name) {
+					name = accountRow.name;
+				}
+			}
+
+			receiveEmailList.push(parsed.address);
+			recipients.push({
+				address: parsed.address,
+				name: name || ''
+			});
+		}
+
+		return { recipients, receiveEmailList };
+	},
+
+	injectOpenTrackPixel(c, html, trackId) {
+		const origin = new URL(c.req.url).origin;
+		const pixel = `<img src="${origin}/api/track/open/${trackId}" width="1" height="1" alt="" style="display:none!important;width:1px;height:1px;border:0;overflow:hidden;" />`;
+
+		if (!html) {
+			return `<div>${pixel}</div>`;
+		}
+
+		if (/<\/body>/i.test(html)) {
+			return html.replace(/<\/body>/i, `${pixel}</body>`);
+		}
+
+		return `${html}${pixel}`;
 	},
 
 	async selectUserEmailCountList(c, userIds, type, del = isDel.NORMAL) {
@@ -1143,7 +1228,22 @@ const emailService = {
 
 	async read(c, params, userId) {
 		const { emailIds } = params;
+		const rows = await orm(c).select({
+			emailId: email.emailId,
+			type: email.type,
+			relation: email.relation
+		}).from(email).where(and(eq(email.userId, userId), inArray(email.emailId, emailIds))).all();
+
 		await orm(c).update(email).set({ unread: emailConst.unread.READ }).where(and(eq(email.userId, userId), inArray(email.emailId, emailIds)));
+
+		const sendIds = rows
+			.filter(row => row.type === emailConst.type.RECEIVE && String(row.relation || '').startsWith('onsite-send:'))
+			.map(row => Number(String(row.relation).slice('onsite-send:'.length)))
+			.filter(id => !Number.isNaN(id) && id > 0);
+
+		if (sendIds.length > 0) {
+			await orm(c).update(email).set({ opened: emailConst.opened.OPENED }).where(inArray(email.emailId, sendIds)).run();
+		}
 	}
 };
 

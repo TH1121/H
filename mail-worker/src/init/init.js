@@ -32,8 +32,24 @@ const dbInit = {
 		await this.v3_1DB(c);
 		await this.v3_2DB(c);
 		await this.v3_3DB(c);
+		await this.v3_4DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
+	},
+
+	async v3_4DB(c) {
+		try {
+			await c.env.db.prepare(`ALTER TABLE email ADD COLUMN opened INTEGER NOT NULL DEFAULT 0;`).run();
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
+
+		try {
+			await c.env.db.prepare(`UPDATE email SET to_email = COALESCE(json_extract(recipient, '$[0].address'), to_email) WHERE type = 1 AND (to_email IS NULL OR to_email = '');`).run();
+			await c.env.db.prepare(`UPDATE email SET to_name = COALESCE(json_extract(recipient, '$[0].name'), to_name) WHERE type = 1 AND (to_name IS NULL OR to_name = '');`).run();
+		} catch (e) {
+			console.warn(`跳过回填：${e.message}`);
+		}
 	},
 
 	async v3_3DB(c) {

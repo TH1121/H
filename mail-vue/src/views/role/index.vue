@@ -440,11 +440,12 @@ window.onresize = () => {
 }
 
 .header-actions {
-  padding: 9px 15px;
+  padding: 10px 16px;
   display: flex;
   align-items: center;
   gap: 18px;
-  box-shadow: var(--header-actions-border);
+  background: var(--surface-color);
+  box-shadow: inset 0 -1px 0 0 var(--light-border);
   font-size: 18px;
 
   .search {

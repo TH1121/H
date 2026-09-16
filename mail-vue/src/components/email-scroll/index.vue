@@ -61,6 +61,9 @@
                     <el-tooltip effect="dark" :content="item.statusIcon.content">
                       <Icon :icon="item.statusIcon.icon" :style="`color: ${item.statusIcon.color}`" width="20" height="20"/>
                     </el-tooltip>
+                    <el-tooltip effect="dark" :content="item.openedIcon.content">
+                      <Icon :icon="item.openedIcon.icon" :style="`color: ${item.openedIcon.color}`" width="18" height="18"/>
+                    </el-tooltip>
                     <div class="del-status" v-if="item.isDel">
                       <el-tooltip effect="dark" :content="item.isDelContent">
                         <Icon class="icon" icon="mdi:email-remove" width="20" height="20"/>
@@ -71,7 +74,7 @@
                   <span class="name">
                     <span>
                       <div class="unread" v-if="isMobile && (item.unread === EmailUnreadEnum.UNREAD && showUnread) "/>
-                      <slot name="name" :email="item"> {{ item.name }}</slot>
+                      <slot name="name" :email="item">{{ displayName(item) }}</slot>
                     </span>
                     <span>
                       <Icon v-if="item.isStar" icon="fluent-color:star-16" width="18" height="18"/>
@@ -109,7 +112,21 @@
                 </div>
               </div>
               <div class="email-right" :style="showUserInfo ? 'align-self: start;':''">
-                <span class="email-time" :style="(item.unread === EmailUnreadEnum.UNREAD && showUnread) ? 'font-weight: bold' : ''">{{ item.formatCreateTime }}</span>
+                <div class="row-actions" :class="{ 'always-show': props.type === 'send' || showQuickActionsAlways }" v-if="showQuickActions" @click.stop>
+                  <el-tooltip effect="dark" :content="t('reply')" v-if="canReply">
+                    <Icon class="action-icon" icon="la:reply" width="18" height="18" @click="openReply(item)"/>
+                  </el-tooltip>
+                  <el-tooltip effect="dark" :content="t('forward')" v-if="canForward">
+                    <Icon class="action-icon" icon="iconoir:arrow-up-right" width="17" height="17" @click="openForward(item)"/>
+                  </el-tooltip>
+                  <el-tooltip effect="dark" :content="t('star')" v-if="showStar">
+                    <Icon class="action-icon" :icon="item.isStar ? 'fluent-color:star-16' : 'solar:star-line-duotone'" width="17" height="17" @click="starChange(item)"/>
+                  </el-tooltip>
+                  <el-tooltip effect="dark" :content="t('delete')" v-perm="'email:delete'">
+                    <Icon class="action-icon delete" icon="uiw:delete" width="15" height="15" @click="rightDelete(item.emailId)"/>
+                  </el-tooltip>
+                </div>
+                <span class="email-time" :class="{ 'hide-on-actions': props.type === 'send' || showQuickActionsAlways }" :style="(item.unread === EmailUnreadEnum.UNREAD && showUnread) ? 'font-weight: bold' : ''">{{ item.formatCreateTime }}</span>
               </div>
             </div>
             <skeletonBlock v-else-if="item.expand === 'loading'"
@@ -172,7 +189,7 @@
               </div>
             </template>
           </el-dropdown-item>
-          <el-dropdown-item v-if="['email','star'].includes(props.type)" @click="openReply(rightClickEmail)">
+          <el-dropdown-item v-if="['email','send','star'].includes(props.type)" @click="openReply(rightClickEmail)">
             <template #default>
               <div class="right-dropdown-item">
                 <Icon icon="la:reply" width="20" height="20"  />
@@ -244,7 +261,7 @@ import {useSettingStore} from "@/store/setting.js";
 import {sleep} from "@/utils/time-utils.js"
 import {fromNow} from "@/utils/day.js";
 import {useI18n} from "vue-i18n";
-import {EmailUnreadEnum} from "@/enums/email-enum.js";
+import {EmailUnreadEnum, EmailOpenedEnum} from "@/enums/email-enum.js";
 import { UseVirtualList } from '@vueuse/components'
 import { useScroll } from '@vueuse/core'
 
@@ -279,6 +296,14 @@ const props = defineProps({
   showStar: {
     type: Boolean,
     default: true
+  },
+  showQuickActions: {
+    type: Boolean,
+    default: true
+  },
+  showQuickActionsAlways: {
+    type: Boolean,
+    default: false
   },
   allowStar: {
     type: Boolean,
@@ -328,6 +353,8 @@ const rightClickEmail = ref({});
 const MAX_SELECT_COUNT = 95;
 const checkedEmailCount = ref(0);
 const isSelectMax = computed(() => checkedEmailCount.value >= MAX_SELECT_COUNT);
+const canReply = computed(() => ['email', 'send', 'star'].includes(props.type));
+const canForward = computed(() => ['email', 'send', 'star'].includes(props.type));
 let timer = null
 const position = ref(
     DOMRect.fromRect({
@@ -345,6 +372,50 @@ const triggerRef = ref({
 const queryParam = reactive({
   size: 50
 });
+
+function displayName(email) {
+  if (props.type === 'send' || Number(email.type) === 1) {
+    return getRecipientDisplay(email)
+  }
+  return email.name || email.sendEmail || ''
+}
+
+function parseRecipientList(recipient) {
+  try {
+    const list = typeof recipient === 'string'
+      ? JSON.parse(recipient || '[]')
+      : (recipient || [])
+    return Array.isArray(list) ? list : []
+  } catch (e) {
+    return []
+  }
+}
+
+function getRecipientDisplay(email) {
+  const recipients = parseRecipientList(email.recipient)
+  if (recipients.length > 0) {
+    const labels = recipients
+      .map(item => {
+        if (!item) return ''
+        if (typeof item === 'string') return item
+        const name = (item.name || '').trim()
+        const address = (item.address || item.email || '').trim()
+        return name || address
+      })
+      .filter(Boolean)
+    if (labels.length > 0) {
+      return labels.join(', ')
+    }
+  }
+
+  const toName = (email.toName || '').trim()
+  if (toName) return toName
+
+  const toEmail = (email.toEmail || '').trim()
+  if (toEmail) return toEmail
+
+  return t('noRecipient')
+}
 
 defineExpose({
   refreshList,
@@ -490,14 +561,14 @@ window.addEventListener('wheel', (event) => {
 })
 
 function openReply(email) {
-  const fullEmail = emailStore.detailMap[email.emailId]
-  if (!fullEmail) return
+  const fullEmail = emailStore.detailMap[email.emailId] || emailStore.toContentEmail(email)
+  if (!fullEmail?.emailId) return
   uiStore.writerRef.openReply(fullEmail)
 }
 
 function openForward(email) {
-  const fullEmail = emailStore.detailMap[email.emailId]
-  if (!fullEmail) return
+  const fullEmail = emailStore.detailMap[email.emailId] || emailStore.toContentEmail(email)
+  if (!fullEmail?.emailId) return
   uiStore.writerRef.openForward(fullEmail)
 }
 
@@ -863,20 +934,24 @@ function handleList(list) {
     email.formatCreateTime = fromNow(email.createTime);
     email.test = t('received')
     const statusIconMap = {
-      0: { icon: 'ic:round-mark-email-read', color: '#51C76B', content: t('received') },
-      1: { icon: 'bi:send-arrow-up-fill',  color: '#51C76B', content: t('sent') },
-      2: { icon: 'bi:send-check-fill',     color: '#51C76B', content: t('delivered') },
-      3: { icon: 'bi:send-x-fill',         color: '#F56C6C', content: t('bounced') },
-      8: { icon: 'bi:send-x-fill',         color: '#F56C6C', content: t('bounced') },
-      4: { icon: 'bi:send-exclamation-fill', color: '#FBBD08', content: t('complained') },
-      5: { icon: 'bi:send-arrow-up-fill',  color: '#FBBD08', content: t('delayed') },
-      7: { icon: 'ic:round-mark-email-read', color: '#FBBD08', content: t('noRecipient') },
+      0: { icon: 'ic:round-mark-email-read', color: '#10B981', content: t('received') },
+      1: { icon: 'bi:send-arrow-up-fill',  color: '#10B981', content: t('sent') },
+      2: { icon: 'bi:send-check-fill',     color: '#10B981', content: t('delivered') },
+      3: { icon: 'bi:send-x-fill',         color: '#EF4444', content: t('bounced') },
+      8: { icon: 'bi:send-x-fill',         color: '#EF4444', content: t('bounced') },
+      4: { icon: 'bi:send-exclamation-fill', color: '#F59E0B', content: t('complained') },
+      5: { icon: 'bi:send-arrow-up-fill',  color: '#F59E0B', content: t('delayed') },
+      7: { icon: 'ic:round-mark-email-read', color: '#F59E0B', content: t('noRecipient') },
     };
 
     if (email.isDel) {
       email.isDelContent = t('selectDeleted');
     }
-    email.statusIcon = statusIconMap[email.status];
+    email.statusIcon = statusIconMap[email.status] || statusIconMap[1];
+    const opened = Number(email.opened) === EmailOpenedEnum.OPENED;
+    email.openedIcon = opened
+      ? { icon: 'mdi:email-open-outline', color: 'var(--el-color-primary)', content: t('mailOpened') }
+      : { icon: 'mdi:email-outline', color: 'var(--secondary-text-color)', content: t('mailUnopened') };
   })
 }
 
@@ -970,14 +1045,14 @@ function loadData() {
 
 :deep(.email-row) {
   display: flex;
-  padding: 8px 0;
+  padding: 10px 0;
   justify-content: space-between;
-  box-shadow: var(--header-actions-border);
+  box-shadow: inset 0 -1px 0 0 var(--light-border);
   cursor: pointer;
   align-items: center;
   position: relative;
-  transition: background 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-  height: 48px;
+  transition: background 0.15s ease-in-out;
+  height: 52px;
   @media (max-width: 1366px) {
     height: 83px;
   }
@@ -1074,8 +1149,9 @@ function loadData() {
 
       .email-status {
         display: flex;
-        flex-direction: column;
-        align-content: center;
+        flex-direction: row;
+        align-items: center;
+        gap: 4px;
         @media (max-width: 1366px) {
           flex-direction: row;
           gap: 5px;
@@ -1207,8 +1283,60 @@ function loadData() {
     white-space: nowrap;
     display: flex;
     padding-left: 15px;
+    padding-right: 12px;
     align-items: center;
+    gap: 8px;
+    min-width: 88px;
+    justify-content: flex-end;
     @media (max-width: 1366px) {
+      display: none;
+    }
+
+    .row-actions {
+      display: none;
+      align-items: center;
+      gap: 8px;
+
+      &.always-show {
+        display: flex;
+      }
+
+      .action-icon {
+        color: var(--el-text-color-secondary);
+        cursor: pointer;
+        flex-shrink: 0;
+
+        &:hover {
+          color: var(--el-color-primary);
+        }
+
+        &.delete:hover {
+          color: var(--el-color-danger);
+        }
+      }
+    }
+
+    .email-time {
+      min-width: 56px;
+      text-align: right;
+    }
+  }
+
+  &:hover {
+    background-color: var(--email-hover-background);
+    z-index: 0;
+
+    .row-actions {
+      display: flex;
+    }
+
+    .email-time {
+      display: none;
+    }
+  }
+
+  &:not(:hover) {
+    .email-time.hide-on-actions {
       display: none;
     }
   }
@@ -1217,11 +1345,6 @@ function loadData() {
     @media (max-width: 1366px) {
       display: none;
     }
-  }
-
-  &:hover {
-    background-color: var(--email-hover-background);
-    z-index: 0;
   }
 
   &.right-checked,
@@ -1272,8 +1395,9 @@ function loadData() {
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 15px;
-  padding: 3px 15px;
-  box-shadow: var(--header-actions-border);
+  padding: 6px 16px;
+  background: var(--surface-color);
+  box-shadow: inset 0 -1px 0 0 var(--light-border);
 
   .header-left {
     display: flex;

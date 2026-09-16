@@ -534,12 +534,13 @@ function openAdd() {
 }
 
 .header-actions {
-  padding: 9px 15px;
+  padding: 10px 16px;
   display: flex;
   gap: 18px;
   flex-wrap: wrap;
   align-items: center;
-  box-shadow: inset 0 -1px 0 0 rgba(100, 121, 143, 0.12);
+  background: var(--surface-color);
+  box-shadow: inset 0 -1px 0 0 var(--light-border);
   font-size: 18px;
   @media (max-width: 767px) {
     gap: 15px;
