@@ -15,7 +15,7 @@
 
 建议敏感信息放 **Secrets**，非敏感放 **Variables**。
 
-### 必填
+### 必填（线上已有库时尤其重要）
 
 | 名称 | 说明 | 示例 |
 |------|------|------|
@@ -24,15 +24,18 @@
 | `DOMAIN` | 邮件域名，**必须是 JSON 数组字符串** | `["mail330.fj-h.online"]` |
 | `ADMIN` | 管理员邮箱 | `admin@mail330.fj-h.online` |
 | `JWT_SECRET` | JWT 密钥（勿含 `? % # / \`） | 一串随机字符串 |
+| `D1_DATABASE_ID` | **已有** D1 UUID（必填，禁止每次新建） | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| `KV_NAMESPACE_ID` | **已有** KV ID（必填，禁止每次新建） | `xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` |
+| `CUSTOM_DOMAIN` | 自定义访问域名 | `mail-330.fj-h.online` |
 
-### 强烈建议（已有线上环境时）
+### 强烈建议
 
 | 名称 | 说明 |
 |------|------|
-| `CUSTOM_DOMAIN` | 自定义访问域名，如 `mail-330.fj-h.online` |
-| `D1_DATABASE_ID` | 已有 D1 数据库 ID（不填会按项目名自动创建） |
-| `KV_NAMESPACE_ID` | 已有 KV 命名空间 ID（不填会按项目名自动创建） |
 | `R2_BUCKET_NAME` | R2 桶名（不填则去掉 R2 绑定） |
+
+> 未设置 `D1_DATABASE_ID` / `KV_NAMESPACE_ID` 时，Actions **会直接失败**，避免误绑空库。
+> 在 Cloudflare 控制台 → Workers → D1 / KV 复制现有资源 ID 填入即可。
 
 ### 可选
 
@@ -71,6 +74,7 @@ git push origin main
 
 ## 注意
 
-1. 已有线上 D1 / KV 时，务必填入对应 ID，避免自动新建空库覆盖逻辑资源。
-2. `DOMAIN` 必须是合法 JSON 数组，例如：`["example.com"]`，不要写成 `example.com`。
-3. 本地改完后若不想走 CI，仍可手动：`cd mail-worker && pnpm deploy`。
+1. **每次部署丢 D1/KV 绑定**：通常是没在 Secrets 写死 `D1_DATABASE_ID` / `KV_NAMESPACE_ID`，或本地 `wrangler.toml` 里 `database_id` / `id` 为空。部署配置是绑定的唯一来源，空配置会覆盖控制台里的绑定。
+2. 本地手动部署前，请在 [`mail-worker/wrangler.toml`](../mail-worker/wrangler.toml) 填入同一套 D1/KV ID。
+3. `DOMAIN` 必须是合法 JSON 数组，例如：`["example.com"]`，不要写成 `example.com`。
+4. 本地改完后若不想走 CI，可：`cd mail-worker && pnpm deploy`（同样依赖 `wrangler.toml` 里的绑定）。

@@ -6,14 +6,18 @@ keep_vars = true
 [observability]
 enabled = true
 
-#[[d1_databases]]
-#binding = "db"			#d1数据库绑定名默认不可修改
-#database_name = ""		#d1数据库名字
-#database_id = ""		#d1数据库id
+# 重要：部署时 wrangler.toml 是绑定的唯一来源。
+# 若下面 D1/KV 的 ID 为空或注释掉，每次 deploy 都可能丢掉绑定，需要在控制台重新绑。
+# 请填入 Cloudflare 控制台里「已有」的数据库 ID（不要每次新建）。
 
-#[[kv_namespaces]]
-#binding = "kv"			#kv绑定名默认不可修改
-#id = ""					#kv数据库id
+[[d1_databases]]
+binding = "db"			#d1数据库绑定名默认不可修改
+database_name = "cloud-mail"		#d1数据库名字
+database_id = "b8df9820-335f-4642-b866-5984df9510fb"
+
+[[kv_namespaces]]
+binding = "kv"			#kv绑定名默认不可修改
+id = "dfc2867e5cca4a478526c277b5c61605"
 
 #[[r2_buckets]]
 #binding = "r2"			#r2对象存储绑定名默认不可修改
