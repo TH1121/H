@@ -5,8 +5,9 @@
 	"scripts": {
 		"dev": "wrangler dev --config wrangler-dev.toml",
 		"test": "wrangler deploy --config wrangler-test.toml",
-		"deploy": "node ./scripts/cf-deploy.mjs",
-		"deploy:raw": "wrangler deploy",
+		"deploy": "wrangler deploy -c wrangler.mail-330.toml",
+		"deploy:mail-330": "wrangler deploy -c wrangler.mail-330.toml",
+		"deploy:h": "wrangler deploy -c wrangler.h.toml",
 		"start": "wrangler dev"
 	},
 	"devDependencies": {

@@ -1,18 +1,23 @@
-name = "cloud-mail"
+name = "mail-h"
 main = "src/index.js"
 compatibility_date = "2025-06-04"
 keep_vars = true
 
-# 默认配置（无 D1/KV ID）。
-# 不同仓库请用对应文件部署，不要改错：
-#   mail-330 → wrangler.mail-330.toml
-#   H       → wrangler.h.toml
-#
-# Cloudflare Deploy command 示例：
-#   npx wrangler deploy -c wrangler.mail-330.toml
+# 仅用于 H 仓库 / Cloudflare 项目
+# Deploy command: npx wrangler deploy -c wrangler.h.toml
+# 请把下面的 database_id / id 换成 H 环境自己的 D1、KV ID
 
 [observability]
 enabled = true
+
+[[d1_databases]]
+binding = "db"
+database_name = "cloud-mail-h"
+database_id = "REPLACE_WITH_H_D1_UUID"
+
+[[kv_namespaces]]
+binding = "kv"
+id = "REPLACE_WITH_H_KV_ID"
 
 #[[r2_buckets]]
 #binding = "r2"
@@ -32,14 +37,6 @@ run_worker_first = true
 
 [triggers]
 crons = ["0 * * * *"]
-
-[vars]
-#ai_model = ""
-#analysis_cache = false
-#orm_log = false
-#domain = []
-#admin = ""
-#jwt_secret = ""
 
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"
