@@ -13,11 +13,11 @@ enabled = true
 [[d1_databases]]
 binding = "db"
 database_name = "cloud-mail-h"
-database_id = "REPLACE_WITH_H_D1_UUID"
+database_id = "R82ee5a76-684e-4100-9a97-8cee675bb735"
 
 [[kv_namespaces]]
 binding = "kv"
-id = "REPLACE_WITH_H_KV_ID"
+id = "1e2b2007f9b1479196135e2091933536"
 
 #[[r2_buckets]]
 #binding = "r2"
