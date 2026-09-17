@@ -137,15 +137,20 @@ jobs:
           CONFIG_FILE="wrangler-action.toml"
           
           if [ -z "$KV_NAMESPACE_ID" ]; then
-            echo "❌ KV_NAMESPACE_ID is required."
-            echo "Go to Cloudflare Dashboard → Workers → KV, copy the existing namespace ID,"
-            echo "then set GitHub Secret/Variable KV_NAMESPACE_ID. Do NOT leave it empty,"
-            echo "otherwise each deploy may create/bind a different KV and drop your data."
-            exit 1
+            echo "KV_NAMESPACE_ID not set, creating a new KV namespace..."
+            OUTPUT=$(pnpm wrangler kv namespace create "cloud-mail" 2>&1) || true
+            echo "$OUTPUT"
+            KV_NAMESPACE_ID=$(echo "$OUTPUT" | sed -n "s/.*id = \"\([^\"]*\)\".*/\1/p" | head -n1)
+            if [ -z "$KV_NAMESPACE_ID" ]; then
+              echo "❌ Failed to create or parse KV namespace ID."
+              exit 1
+            fi
+            echo "✅ Created KV namespace: ${KV_NAMESPACE_ID}"
+          else
+            echo "✅ Using existing KV namespace: ${KV_NAMESPACE_ID}"
           fi
           
           sed -i "s|\${KV_NAMESPACE_ID}|${KV_NAMESPACE_ID}|g" "$CONFIG_FILE"
-          echo "✅ Using existing KV namespace: ${KV_NAMESPACE_ID}"
 
       - name: 🐬 设置D1数据库 / Set up D1 database
         working-directory: ./mail-worker
@@ -154,15 +159,26 @@ jobs:
           CONFIG_FILE="wrangler-action.toml"
           
           if [ -z "$D1_DATABASE_ID" ]; then
-            echo "❌ D1_DATABASE_ID is required."
-            echo "Go to Cloudflare Dashboard → Workers → D1, copy the existing database UUID,"
-            echo "then set GitHub Secret/Variable D1_DATABASE_ID. Do NOT leave it empty,"
-            echo "otherwise each deploy may create/bind a different D1 and look like a fresh install."
-            exit 1
+            echo "D1_DATABASE_ID not set, creating a new D1 database..."
+            OUTPUT=$(pnpm wrangler d1 create cloud-mail 2>&1) || true
+            echo "$OUTPUT"
+            D1_DATABASE_ID=$(echo "$OUTPUT" | sed -n "s/.*database_id = \"\([^\"]*\)\".*/\1/p" | head -n1)
+            if [ -z "$D1_DATABASE_ID" ]; then
+              # maybe already exists — try list
+              LIST_OUTPUT=$(pnpm wrangler d1 list --json 2>&1) || true
+              echo "$LIST_OUTPUT"
+              D1_DATABASE_ID=$(echo "$LIST_OUTPUT" | jq -r '.[] | select(.name=="cloud-mail") | .uuid' | head -n1)
+            fi
+            if [ -z "$D1_DATABASE_ID" ]; then
+              echo "❌ Failed to create or resolve D1 database ID."
+              exit 1
+            fi
+            echo "✅ Using D1 database: ${D1_DATABASE_ID}"
+          else
+            echo "✅ Using existing D1 database: ${D1_DATABASE_ID}"
           fi
           
           sed -i "s|\${D1_DATABASE_ID}|${D1_DATABASE_ID}|g" "$CONFIG_FILE"
-          echo "✅ Using existing D1 database: ${D1_DATABASE_ID}"
 
       - name: 🚀 开始部署 / Start deployment
         id: deploy
