@@ -643,7 +643,7 @@ function submitRegister() {
 
 .container {
   background: v-bind(loginOpacity);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px) saturate(1.2);
   padding-left: 44px;
   padding-right: 44px;
   display: flex;
@@ -651,8 +651,25 @@ function submitRegister() {
   justify-content: center;
   width: 450px;
   height: 100%;
-  border-left: 1px solid var(--login-border);
-  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.18);
+  border-left: 1px solid rgba(34, 211, 238, 0.22);
+  box-shadow:
+    -12px 0 40px rgba(0, 0, 0, 0.28),
+    inset 1px 0 0 rgba(34, 211, 238, 0.08);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #22D3EE, #06B6D4, transparent);
+    opacity: 0.85;
+    pointer-events: none;
+  }
+
   @media (max-width: 1024px) {
     padding: 28px 22px;
     width: 384px;
@@ -660,10 +677,10 @@ function submitRegister() {
     border-radius: 16px;
     height: auto;
     max-height: calc(100% - 36px);
-    border: 1px solid var(--login-border);
+    border: 1px solid rgba(34, 211, 238, 0.22);
   }
   @media (max-width: 767px) {
-    border: 1px solid var(--login-border);
+    border: 1px solid rgba(34, 211, 238, 0.22);
     padding: 28px 20px;
     border-radius: 16px;
     height: fit-content;
@@ -677,11 +694,19 @@ function submitRegister() {
     width: 100%;
     border-radius: 10px;
     font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .btn.el-button--primary {
+    background: linear-gradient(135deg, #22D3EE, #0891B2);
+    border: none;
+    color: #041016;
+    box-shadow: 0 0 24px rgba(6, 182, 212, 0.35);
   }
 
   .btn:not(.el-button--primary) {
-    background: transparent;
-    border: 1px solid var(--base-border-color);
+    background: rgba(6, 182, 212, 0.06);
+    border: 1px solid rgba(34, 211, 238, 0.28);
     color: var(--el-text-color-primary);
   }
 
@@ -689,13 +714,19 @@ function submitRegister() {
     margin-top: 8px;
     margin-bottom: 24px;
     color: var(--form-desc-color);
-    font-size: 14px;
+    font-size: 13px;
+    font-family: "JetBrains Mono", "Space Grotesk", monospace;
+    letter-spacing: 0.04em;
   }
 
   .form-title {
     font-weight: 700;
-    font-size: 26px !important;
+    font-size: 28px !important;
     letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--el-text-color-primary) 20%, var(--tech-accent) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
   .switch {
@@ -706,6 +737,7 @@ function submitRegister() {
       color: var(--login-switch-color);
       cursor: pointer;
       font-weight: 500;
+      text-shadow: 0 0 12px rgba(34, 211, 238, 0.35);
     }
   }
 
@@ -713,6 +745,11 @@ function submitRegister() {
     border-radius: 10px;
     background: var(--surface-color);
     box-shadow: 0 0 0 1px var(--base-border-color) inset;
+    transition: box-shadow 0.2s ease;
+
+    &.is-focus {
+      box-shadow: 0 0 0 1px var(--tech-accent) inset, 0 0 16px rgba(6, 182, 212, 0.2) !important;
+    }
   }
 
   .email-input :deep(.el-input__wrapper) {
@@ -763,12 +800,19 @@ function submitRegister() {
   justify-content: center;
   align-items: center;
   border-radius: 10px;
-  background: var(--surface-color);
+  background: rgba(11, 18, 32, 0.85);
   bottom: 14px;
   right: 14px;
   z-index: 1000;
-  border: 1px solid var(--light-border);
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.15);
   cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    border-color: rgba(34, 211, 238, 0.5);
+    box-shadow: 0 0 22px rgba(6, 182, 212, 0.3);
+  }
 }
 
 :deep(.el-input-group__append) {
@@ -808,7 +852,10 @@ function submitRegister() {
 
 
 #login-box {
-  background: radial-gradient(1200px 700px at 20% 20%, #1E293B 0%, #0F172A 45%, #020617 100%);
+  background:
+    radial-gradient(900px 500px at 15% 20%, rgba(6, 182, 212, 0.22), transparent 55%),
+    radial-gradient(700px 480px at 85% 75%, rgba(14, 165, 233, 0.14), transparent 50%),
+    linear-gradient(160deg, #05080F 0%, #0B1220 45%, #030712 100%);
   font-family: inherit;
   height: 100%;
   margin: 0;
@@ -829,9 +876,18 @@ function submitRegister() {
 .login-ambiance {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(600px 400px at 70% 30%, rgba(37, 99, 235, 0.28), transparent 70%),
-    radial-gradient(500px 360px at 15% 80%, rgba(14, 165, 233, 0.18), transparent 65%);
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.04) 1px, transparent 1px),
+    radial-gradient(520px 360px at 65% 28%, rgba(34, 211, 238, 0.22), transparent 70%),
+    radial-gradient(440px 320px at 18% 78%, rgba(6, 182, 212, 0.16), transparent 65%);
+  background-size: 48px 48px, 48px 48px, auto, auto;
+  animation: login-grid-drift 28s linear infinite;
+}
+
+@keyframes login-grid-drift {
+  from { background-position: 0 0, 0 0, 0 0, 0 0; }
+  to { background-position: 48px 48px, 48px 48px, 0 0, 0 0; }
 }
 
 </style>

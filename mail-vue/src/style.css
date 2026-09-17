@@ -19,15 +19,16 @@ html, body {
 
 :deep(.el-input__inner:focus) {
     background-color: transparent !important;
-    border-color: var(--base-border-color) !important;
+    border-color: var(--tech-accent) !important;
 }
 
 .el-table thead th {
     font-weight: 600 !important;
+    letter-spacing: 0.02em;
 }
 
 body {
-    font-family: "Plus Jakarta Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", sans-serif;
+    font-family: "Space Grotesk", "Plus Jakarta Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", sans-serif;
     line-height: 1.5;
     color: var(--el-text-color-primary);
     font-size: 14px;
@@ -108,51 +109,57 @@ button, input, select, textarea {
 }
 
 :root {
-    --el-color-primary: #2563EB;
-    --el-color-primary-dark-2: #1D4ED8;
-    --el-color-primary-light-3: #60A5FA;
-    --el-color-primary-light-5: #93C5FD;
-    --el-color-primary-light-7: #BFDBFE;
-    --el-color-primary-light-8: #DBEAFE;
-    --el-color-primary-light-9: #EFF6FF;
+    /* electric cyan-blue tech palette */
+    --el-color-primary: #0891B2;
+    --el-color-primary-dark-2: #0E7490;
+    --el-color-primary-light-3: #22D3EE;
+    --el-color-primary-light-5: #67E8F9;
+    --el-color-primary-light-7: #A5F3FC;
+    --el-color-primary-light-8: #CFFAFE;
+    --el-color-primary-light-9: #ECFEFF;
 
-    --page-background: #F4F6F9;
+    --tech-accent: #06B6D4;
+    --tech-accent-soft: rgba(6, 182, 212, 0.14);
+    --tech-grid: rgba(8, 145, 178, 0.06);
+    --tech-glow: 0 0 0 1px rgba(6, 182, 212, 0.25);
+
+    --page-background: #F0F7FA;
     --surface-color: #FFFFFF;
-    --extra-light-fill: #F4F6F9;
-    --settings-page-background: #F4F6F9;
-    --light-ill: #EEF1F6;
-    --light-border: #E5E7EB;
+    --extra-light-fill: #F0F7FA;
+    --settings-page-background: #F0F7FA;
+    --light-ill: #E6F4F8;
+    --light-border: #D5E8EF;
     --header-actions-border: inset 0 -1px 0 0 var(--el-border-color-lighter);
-    --aside-backgound: #12141A;
-    --aside-menu-active-background: #1A1C24;
-    --aside-text: rgba(255, 255, 255, 0.92);
-    --aside-muted: rgba(255, 255, 255, 0.45);
-    --aside-brand: #2563EB;
-    --aside-hover: rgba(255, 255, 255, 0.06);
-    --loadding-background: rgba(255, 255, 255, 0.8);
-    --dark-border: #E5E7EB;
-    --base-fill: #EEF1F6;
-    --regular-text-color: #4B5563;
-    --light-border-color: #E5E7EB;
-    --aside-right-border: 1px 0 0 rgba(15, 23, 42, 0.08);
+    --aside-backgound: #070B12;
+    --aside-menu-active-background: rgba(6, 182, 212, 0.12);
+    --aside-text: rgba(236, 254, 255, 0.92);
+    --aside-muted: rgba(103, 232, 249, 0.45);
+    --aside-brand: #22D3EE;
+    --aside-hover: rgba(34, 211, 238, 0.08);
+    --loadding-background: rgba(255, 255, 255, 0.82);
+    --dark-border: #D5E8EF;
+    --base-fill: #E6F4F8;
+    --regular-text-color: #334155;
+    --light-border-color: #D5E8EF;
+    --aside-right-border: 1px 0 0 rgba(6, 182, 212, 0.12);
     --choose-account-background: var(--el-color-primary-light-9);
     --el-text-color-regular: var(--el-text-color-primary);
-    --email-scroll-content-color: rgba(71, 85, 105, 0.55);
-    --email-hover-background: #EEF2FF;
+    --email-scroll-content-color: rgba(51, 65, 85, 0.55);
+    --email-hover-background: #E0F7FA;
     --email-right-click-background: #FEF3C7;
-    --login-border: 1px solid rgba(255, 255, 255, 0.12);
+    --login-border: 1px solid rgba(34, 211, 238, 0.22);
     --form-desc-color: #64748B;
-    --login-switch-color: #2563EB;
+    --login-switch-color: #0891B2;
     --scrollbar-track-color: #94A3B8;
-    --base-border-color: #E5E7EB;
+    --base-border-color: #D5E8EF;
     --secondary-text-color: #64748B;
     --message-block-color: rgba(0, 0, 0, 0);
     --loading-hide-transition: all 200ms;
-    --chart-1: #2563EB;
-    --chart-2: #0EA5E9;
+    --chart-1: #0891B2;
+    --chart-2: #06B6D4;
     --chart-3: #14B8A6;
     --chart-4: #F59E0B;
-    --chart-5: #6366F1;
+    --chart-5: #38BDF8;
     --vt-x: 50%;
     --vt-y: 50%;
     --vt-duration: 520ms;
@@ -160,54 +167,65 @@ button, input, select, textarea {
 }
 
 .dark {
-    --el-color-primary: #3B82F6;
-    --el-color-primary-dark-2: #2563EB;
-    --el-color-primary-light-3: #60A5FA;
-    --el-color-primary-light-5: #93C5FD;
-    --el-color-primary-light-7: #1E3A5F;
-    --el-color-primary-light-8: #1E293B;
-    --el-color-primary-light-9: #172033;
+    --el-color-primary: #22D3EE;
+    --el-color-primary-dark-2: #06B6D4;
+    --el-color-primary-light-3: #67E8F9;
+    --el-color-primary-light-5: #A5F3FC;
+    --el-color-primary-light-7: #164E63;
+    --el-color-primary-light-8: #0C4A6E;
+    --el-color-primary-light-9: #082F49;
 
-    --page-background: #0E0F12;
-    --surface-color: #17181C;
-    --extra-light-fill: #0E0F12;
-    --settings-page-background: #0E0F12;
-    --light-ill: #1C1D22;
-    --light-border: #2A2C33;
-    --aside-backgound: #0A0B0E;
-    --aside-menu-active-background: #1A1C24;
-    --aside-text: rgba(255, 255, 255, 0.9);
-    --aside-muted: rgba(255, 255, 255, 0.4);
-    --aside-brand: #3B82F6;
-    --aside-hover: rgba(255, 255, 255, 0.06);
+    --tech-accent: #22D3EE;
+    --tech-accent-soft: rgba(34, 211, 238, 0.12);
+    --tech-grid: rgba(34, 211, 238, 0.05);
+    --tech-glow: 0 0 0 1px rgba(34, 211, 238, 0.28);
+
+    --page-background: #05080F;
+    --surface-color: #0B1220;
+    --extra-light-fill: #05080F;
+    --settings-page-background: #05080F;
+    --light-ill: #111827;
+    --light-border: #1E293B;
+    --aside-backgound: #030712;
+    --aside-menu-active-background: rgba(34, 211, 238, 0.12);
+    --aside-text: rgba(236, 254, 255, 0.92);
+    --aside-muted: rgba(103, 232, 249, 0.4);
+    --aside-brand: #22D3EE;
+    --aside-hover: rgba(34, 211, 238, 0.08);
     --header-actions-border: inset 0 -1px 0 0 var(--el-border-color-lighter);
-    --loadding-background: rgba(0, 0, 0, 0.35);
-    --dark-border: #2A2C33;
-    --base-fill: #1C1D22;
+    --loadding-background: rgba(3, 7, 18, 0.55);
+    --dark-border: #1E293B;
+    --base-fill: #111827;
     --regular-text-color: #CBD5E1;
-    --light-border-color: #2A2C33;
-    --aside-right-border: 1px 0 0 rgba(0, 0, 0, 0.45);
-    --choose-account-background: #1E293B;
-    --email-scroll-content-color: rgba(148, 163, 184, 0.65);
-    --email-hover-background: #1C1D22;
+    --light-border-color: #1E293B;
+    --aside-right-border: 1px 0 0 rgba(34, 211, 238, 0.12);
+    --choose-account-background: #0C4A6E;
+    --email-scroll-content-color: rgba(148, 163, 184, 0.7);
+    --email-hover-background: rgba(34, 211, 238, 0.08);
     --email-right-click-background: var(--email-hover-background);
-    --login-border: 1px solid rgba(255, 255, 255, 0.1);
+    --login-border: 1px solid rgba(34, 211, 238, 0.2);
     --form-desc-color: #94A3B8;
-    --login-switch-color: #60A5FA;
-    --scrollbar-track-color: #64748B;
-    --base-border-color: #2A2C33;
+    --login-switch-color: #67E8F9;
+    --scrollbar-track-color: #475569;
+    --base-border-color: #1E293B;
     --secondary-text-color: #94A3B8;
-    --message-block-color: rgba(30, 30, 30, 0.25);
-    --el-border-color: #2A2C33 !important;
-    --chart-1: #3B82F6;
+    --message-block-color: rgba(3, 7, 18, 0.35);
+    --el-border-color: #1E293B !important;
+    --chart-1: #22D3EE;
     --chart-2: #38BDF8;
     --chart-3: #2DD4BF;
     --chart-4: #FBBF24;
-    --chart-5: #818CF8;
+    --chart-5: #67E8F9;
 }
 
 .el-input {
     --el-input-text-color: var(--el-text-color-primary) !important;
+}
+
+.el-button--primary {
+    --el-button-bg-color: var(--el-color-primary);
+    --el-button-border-color: var(--el-color-primary);
+    box-shadow: 0 0 16px rgba(6, 182, 212, 0.22);
 }
 
 /* 视图过渡，基于径向剪裁 */
@@ -222,19 +240,16 @@ html:not(.dark) {
     mix-blend-mode: normal;
 }
 
-/* 层级控制，确保对应方向动画在上层可见 */
 html[data-theme-to="dark"]::view-transition-new(root) { z-index: 2; }
 html[data-theme-to="dark"]::view-transition-old(root) { z-index: 1; }
 html[data-theme-to="light"]::view-transition-old(root) { z-index: 2; }
 html[data-theme-to="light"]::view-transition-new(root) { z-index: 1; }
 
-/* 切到暗色：新视图从点击点向外扩散 */
 html[data-theme-to="dark"]::view-transition-new(root) {
     clip-path: circle(0px at var(--vt-x) var(--vt-y));
     animation: vt-radial-in var(--vt-duration) var(--vt-easing) forwards;
 }
 
-/* 切到浅色：旧视图向点击点收缩 */
 html[data-theme-to="light"]::view-transition-old(root) {
     clip-path: circle(var(--vt-end-radius, 0px) at var(--vt-x) var(--vt-y));
     animation: vt-radial-out var(--vt-duration) var(--vt-easing) forwards;

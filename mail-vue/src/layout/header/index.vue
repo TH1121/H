@@ -379,15 +379,17 @@ function formatName(email) {
     width: 34px;
     height: 34px;
     border-radius: 10px;
-    color: #ffffff;
-    background: var(--el-color-primary);
-    transition: background 0.2s ease, transform 0.15s ease;
+    color: #041016;
+    background: linear-gradient(135deg, #67E8F9, #06B6D4);
+    box-shadow: 0 0 18px rgba(6, 182, 212, 0.35);
+    transition: filter 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
 
     &:hover {
-      background: var(--el-color-primary-dark-2);
+      filter: brightness(1.08);
+      box-shadow: 0 0 24px rgba(34, 211, 238, 0.45);
     }
 
     &:active {
@@ -410,8 +412,9 @@ function formatName(email) {
 }
 
 .breadcrumb-item {
-  font-weight: bold;
+  font-weight: 600;
   font-size: 14px;
+  letter-spacing: 0.02em;
   color: var(--el-text-color-primary);
   overflow: hidden;
   white-space: nowrap;

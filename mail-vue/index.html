@@ -9,7 +9,7 @@
   <link rel="icon" href="/public/mail.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   <script>
     const uiStoreStr =  localStorage.getItem('ui')
@@ -22,15 +22,15 @@
     }
     const metaTag = document.getElementById('theme-color-meta');
     const isMobile =  !window.matchMedia("(pointer: fine) and (hover: hover)").matches;
-    metaTag.setAttribute('content', isDark ? (isMobile ? '#0A0B0E' : '#0E0F12') : (isMobile ? '#12141A' : '#F4F6F9'));
+    metaTag.setAttribute('content', isDark ? (isMobile ? '#030712' : '#05080F') : (isMobile ? '#070B12' : '#F0F7FA'));
   </script>
 </head>
 <style>
   html {
-    background: #F4F6F9;
+    background: #F0F7FA;
   }
   .dark {
-    background: #0E0F12;
+    background: #05080F;
   }
   #loading-first {
     position: fixed;
@@ -70,7 +70,7 @@
     height: 4px;
     overflow: hidden;
     border-radius: 999px;
-    background: rgba(37, 99, 235, 0.18);
+    background: rgba(6, 182, 212, 0.18);
   }
 
   .loading-progress::before {
@@ -81,7 +81,7 @@
     width: 100%;
     height: 100%;
     border-radius: inherit;
-    background: #2563EB;
+    background: #06B6D4;
     transform: scaleX(0);
     transform-origin: left center;
     animation: loading-progress-grow 2.4s linear forwards;
@@ -94,7 +94,7 @@
     width: 24px;
     height: 100%;
     border-radius: inherit;
-    background: rgba(37, 99, 235, 0.45);
+    background: rgba(34, 211, 238, 0.55);
     filter: blur(4px);
     transform: translateX(-24px);
     animation: loading-progress-peg 2.4s linear forwards;

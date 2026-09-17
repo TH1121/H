@@ -84,33 +84,53 @@ const route = useRoute();
 
 .title {
   margin: 16px 12px 12px;
-  height: 44px;
+  height: 46px;
   border-radius: 10px;
   display: flex;
   position: relative;
   font-size: 15px;
   font-weight: 600;
+  letter-spacing: 0.02em;
   align-items: center;
   justify-content: flex-start;
   gap: 10px;
   color: var(--aside-text);
-  background: var(--aside-menu-active-background);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(135deg, rgba(6, 182, 212, 0.16), rgba(8, 145, 178, 0.04)),
+    var(--aside-menu-active-background);
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.06), 0 0 20px rgba(6, 182, 212, 0.08);
   transition: all 0.2s ease;
   max-width: 236px;
   padding: 0 14px;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
+    background-size: 14px 14px;
+    pointer-events: none;
+  }
 
   > div {
+    position: relative;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
     max-width: calc(240px - 20px - 30px);
   }
 
-  :deep(.el-icon) {
+  :deep(.el-icon),
+  svg {
+    position: relative;
     flex-shrink: 0;
     font-size: 20px;
     color: var(--aside-brand);
+    filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.45));
   }
 }
 
@@ -119,9 +139,10 @@ const route = useRoute();
   margin: 18px 12px 8px;
   padding-left: 12px;
   color: var(--aside-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-family: "JetBrains Mono", "Space Grotesk", monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
@@ -131,17 +152,21 @@ const route = useRoute();
   height: 38px;
   padding: 10px 12px !important;
   color: var(--aside-text) !important;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .choose-item {
-  font-weight: 500;
+  font-weight: 600;
   background: var(--aside-menu-active-background) !important;
-  box-shadow: inset 3px 0 0 0 var(--aside-brand);
+  border-color: rgba(34, 211, 238, 0.18) !important;
+  box-shadow: inset 3px 0 0 0 var(--aside-brand), 0 0 16px rgba(6, 182, 212, 0.1);
 }
 
 @media (hover: hover) {
   .el-menu-item:hover {
     background: var(--aside-hover) !important;
+    border-color: rgba(34, 211, 238, 0.12) !important;
   }
 }
 
@@ -155,11 +180,13 @@ const route = useRoute();
 }
 
 :deep(.el-menu-item) {
-  background: var(--aside-backgound);
+  background: transparent;
 }
 
 :deep(.el-menu) {
-  background: var(--aside-backgound);
+  background:
+    radial-gradient(480px 240px at 20% 0%, rgba(6, 182, 212, 0.1), transparent 60%),
+    var(--aside-backgound);
 }
 
 .el-menu {
@@ -173,6 +200,8 @@ const route = useRoute();
 }
 
 .scroll {
-  background: var(--aside-backgound);
+  background:
+    linear-gradient(180deg, rgba(6, 182, 212, 0.04), transparent 120px),
+    var(--aside-backgound);
 }
 </style>

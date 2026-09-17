@@ -1051,7 +1051,7 @@ function loadData() {
   cursor: pointer;
   align-items: center;
   position: relative;
-  transition: background 0.15s ease-in-out;
+  transition: background 0.15s ease-in-out, box-shadow 0.15s ease;
   height: 52px;
   @media (max-width: 1366px) {
     height: 83px;
@@ -1324,6 +1324,7 @@ function loadData() {
 
   &:hover {
     background-color: var(--email-hover-background);
+    box-shadow: inset 3px 0 0 0 var(--tech-accent), inset 0 -1px 0 0 var(--light-border);
     z-index: 0;
 
     .row-actions {
@@ -1396,8 +1397,8 @@ function loadData() {
   align-items: center;
   gap: 15px;
   padding: 6px 16px;
-  background: var(--surface-color);
-  box-shadow: inset 0 -1px 0 0 var(--light-border);
+  background: color-mix(in srgb, var(--surface-color) 94%, var(--tech-accent) 6%);
+  box-shadow: inset 0 -1px 0 0 var(--light-border), inset 0 -1px 0 0 rgba(6, 182, 212, 0.08);
 
   .header-left {
     display: flex;
@@ -1420,12 +1421,22 @@ function loadData() {
     .email-count {
       white-space: nowrap;
       margin-top: 6px;
+      font-family: "JetBrains Mono", "Space Grotesk", monospace;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      color: var(--secondary-text-color);
     }
   }
 
   .icon {
     font-size: 18px;
     cursor: pointer;
+    transition: color 0.15s ease, filter 0.15s ease;
+
+    &:hover {
+      color: var(--tech-accent);
+      filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.4));
+    }
   }
 
   .more-icon {

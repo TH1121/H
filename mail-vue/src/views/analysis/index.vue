@@ -770,7 +770,8 @@ function createSendGauge() {
     margin-top: 10px;
     margin-left: 15px;
     font-size: 18px;
-    font-weight: 500;
+    font-weight: 600;
+    letter-spacing: 0.02em;
   }
 
   .number {
@@ -789,7 +790,27 @@ function createSendGauge() {
       background: var(--surface-color);
       border-radius: 12px;
       border: 1px solid var(--light-border);
+      box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.04), 0 8px 24px rgba(5, 8, 15, 0.04);
       padding: 21px 20px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+      &::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--tech-accent), transparent);
+        opacity: 0.7;
+      }
+
+      &:hover {
+        border-color: rgba(6, 182, 212, 0.35);
+        box-shadow: 0 0 20px rgba(6, 182, 212, 0.12);
+      }
 
       .top {
         display: grid;
@@ -812,6 +833,8 @@ function createSendGauge() {
 
           :deep(.el-statistic__number) {
             font-size: 26px;
+            font-family: "JetBrains Mono", "Space Grotesk", monospace;
+            letter-spacing: -0.02em;
           }
         }
 
@@ -828,6 +851,7 @@ function createSendGauge() {
             border-radius: 8px;
             background: var(--el-color-primary-light-9);
             color: var(--el-color-primary);
+            box-shadow: 0 0 12px rgba(6, 182, 212, 0.15);
           }
         }
 
@@ -875,6 +899,20 @@ function createSendGauge() {
       background: var(--surface-color);
       border-radius: 12px;
       border: 1px solid var(--light-border);
+      box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.04);
+      overflow: hidden;
+      position: relative;
+
+      &::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.45), transparent);
+        z-index: 1;
+      }
 
       .source-button {
         padding-right: 15px;

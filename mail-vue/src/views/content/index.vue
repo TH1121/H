@@ -276,8 +276,8 @@ const handleDelete = () => {
   display: flex;
   align-items: center;
   gap: 20px;
-  background: var(--surface-color);
-  box-shadow: inset 0 -1px 0 0 var(--light-border);
+  background: color-mix(in srgb, var(--surface-color) 94%, var(--tech-accent) 6%);
+  box-shadow: inset 0 -1px 0 0 var(--light-border), inset 0 -1px 0 0 rgba(6, 182, 212, 0.08);
   font-size: 18px;
   .star {
     display: flex;
@@ -287,6 +287,12 @@ const handleDelete = () => {
   }
   .icon {
     cursor: pointer;
+    transition: color 0.15s ease, filter 0.15s ease;
+
+    &:hover {
+      color: var(--tech-accent);
+      filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.4));
+    }
   }
 }
 
@@ -308,7 +314,8 @@ const handleDelete = () => {
 
   .email-title {
     font-size: 20px;
-    font-weight: bold;
+    font-weight: 700;
+    letter-spacing: -0.01em;
     margin-bottom: 10px;
   }
 

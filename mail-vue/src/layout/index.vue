@@ -91,19 +91,22 @@ onBeforeUnmount(() => {
 
 .main-container {
   min-height: 100%;
-  background: var(--page-background);
+  background:
+    radial-gradient(900px 420px at 100% 0%, var(--tech-accent-soft), transparent 55%),
+    var(--page-background);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
 .el-main {
   padding: 0;
-  background: var(--page-background);
+  background: transparent;
 }
 
 .el-header {
-  background: var(--surface-color);
+  background: color-mix(in srgb, var(--surface-color) 92%, var(--tech-accent) 8%);
   border-bottom: solid 1px var(--light-border);
+  box-shadow: inset 0 -1px 0 0 rgba(6, 182, 212, 0.08);
   padding: 0 0 0 0;
 }
 
