@@ -6,17 +6,20 @@ keep_vars = true
 [observability]
 enabled = true
 
-# 部署时 wrangler.toml 是绑定的唯一来源。
-# D1/KV 的 ID 留空时，需在 Cloudflare 控制台手动绑定，或由部署流程创建。
+# D1 / KV 不在此写死 ID（避免错误 ID 或空 ID 导致 CF 构建失败）。
+# 请在 Cloudflare 控制台 → Worker → 设置 → 绑定 中配置：
+#   - D1：binding 名必须为 db
+#   - KV：binding 名必须为 kv
+# GitHub Actions 部署仍使用 wrangler-action.toml，并自动创建/注入 ID。
 
-[[d1_databases]]
-binding = "db"			#d1数据库绑定名默认不可修改
-database_name = "cloud-mail"		#d1数据库名字
-database_id = ""
+#[[d1_databases]]
+#binding = "db"
+#database_name = "cloud-mail"
+#database_id = ""
 
-[[kv_namespaces]]
-binding = "kv"			#kv绑定名默认不可修改
-id = ""
+#[[kv_namespaces]]
+#binding = "kv"
+#id = ""
 
 #[[r2_buckets]]
 #binding = "r2"			#r2对象存储绑定名默认不可修改
