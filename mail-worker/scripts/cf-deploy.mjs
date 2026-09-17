@@ -1,11 +1,17 @@
 #!/usr/bin/env node
 /**
- * Cloudflare Workers Builds / 本地部署入口：
- * 自动查找或创建 D1(cloud-mail) 与 KV(cloud-mail)，写入临时配置后 deploy。
+ * 按「当前仓库 / 环境」解析 D1、KV 后再部署，不在代码里写死 ID。
  *
- * Cloudflare 控制台 → 设置 → 构建 → Deploy command 请设为：
- *   pnpm run deploy
- * （项目根目录选 mail-worker）
+ * 优先级：
+ *   1. 环境变量 D1_DATABASE_ID / KV_NAMESPACE_ID（每个仓库各自配置）
+ *   2. 按资源名查找；没有则创建
+ *      资源名默认 = Worker NAME（env.NAME 或 wrangler.toml 的 name）
+ *
+ * Cloudflare Workers Builds：
+ *   Deploy command = pnpm run deploy
+ *   并在该项目的 Environment variables 里填该仓库自己的：
+ *     D1_DATABASE_ID、KV_NAMESPACE_ID（推荐）
+ *     可选 NAME、D1_DATABASE_NAME、KV_NAMESPACE_TITLE
  */
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, unlinkSync, existsSync } from "node:fs";
@@ -16,8 +22,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 const baseToml = join(root, "wrangler.toml");
 const outToml = join(root, "wrangler.generated.toml");
-const D1_NAME = "cloud-mail";
-const KV_TITLE = "cloud-mail";
+
+function readWorkerName() {
+  if (process.env.NAME?.trim()) return process.env.NAME.trim();
+  const text = readFileSync(baseToml, "utf8");
+  return text.match(/^name\s*=\s*"([^"]+)"/m)?.[1] || "cloud-mail";
+}
+
+const WORKER_NAME = readWorkerName();
+const D1_NAME = (process.env.D1_DATABASE_NAME || WORKER_NAME).trim();
+const KV_TITLE = (process.env.KV_NAMESPACE_TITLE || WORKER_NAME).trim();
 
 function wrangler(args, inherit = false) {
   const res = spawnSync("pnpm", ["exec", "wrangler", ...args], {
@@ -39,6 +53,12 @@ function parseId(text, key) {
 }
 
 function ensureKv() {
+  if (process.env.KV_NAMESPACE_ID?.trim()) {
+    const id = process.env.KV_NAMESPACE_ID.trim();
+    console.log(`✅ KV from env KV_NAMESPACE_ID => ${id}`);
+    return id;
+  }
+
   const listed = wrangler(["kv", "namespace", "list", "--json"]);
   try {
     const arr = JSON.parse(listed.stdout || listed.out);
@@ -55,12 +75,18 @@ function ensureKv() {
   const created = wrangler(["kv", "namespace", "create", KV_TITLE]);
   console.log(created.out);
   const id = parseId(created.out, "id");
-  if (!id) throw new Error("Failed to create/parse KV namespace id");
+  if (!id) throw new Error(`Failed to create/parse KV id for "${KV_TITLE}"`);
   console.log(`✅ Created KV "${KV_TITLE}" => ${id}`);
   return id;
 }
 
 function ensureD1() {
+  if (process.env.D1_DATABASE_ID?.trim()) {
+    const id = process.env.D1_DATABASE_ID.trim();
+    console.log(`✅ D1 from env D1_DATABASE_ID => ${id}`);
+    return id;
+  }
+
   const listed = wrangler(["d1", "list", "--json"]);
   try {
     const arr = JSON.parse(listed.stdout || listed.out);
@@ -87,7 +113,7 @@ function ensureD1() {
       /* ignore */
     }
   }
-  if (!id) throw new Error("Failed to create/parse D1 database id");
+  if (!id) throw new Error(`Failed to create/parse D1 id for "${D1_NAME}"`);
   console.log(`✅ D1 "${D1_NAME}" => ${id}`);
   return id;
 }
@@ -95,7 +121,11 @@ function ensureD1() {
 function writeConfig(d1Id, kvId) {
   let text = readFileSync(baseToml, "utf8");
 
-  // drop the commented D1/KV guidance + stubs
+  // allow overriding worker name per repo via env.NAME
+  if (process.env.NAME?.trim()) {
+    text = text.replace(/^name\s*=\s*"[^"]*"/m, `name = "${WORKER_NAME}"`);
+  }
+
   text = text.replace(
     /\n# D1 \/ KV[\s\S]*?(?=\n#\[\[r2_buckets\]\]|\n\[\[r2_buckets\]\]|\n\[ai\])/,
     "\n"
@@ -119,10 +149,11 @@ id = "${kvId}"
   }
 
   writeFileSync(outToml, text);
-  console.log(`Wrote wrangler.generated.toml`);
+  console.log(`Wrote wrangler.generated.toml (worker=${WORKER_NAME}, d1=${D1_NAME}, kv=${KV_TITLE})`);
 }
 
 function main() {
+  console.log(`Repo deploy context: worker=${WORKER_NAME}, d1Name=${D1_NAME}, kvTitle=${KV_TITLE}`);
   const kvId = ensureKv();
   const d1Id = ensureD1();
   writeConfig(d1Id, kvId);

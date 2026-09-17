@@ -137,8 +137,9 @@ jobs:
           CONFIG_FILE="wrangler-action.toml"
           
           if [ -z "$KV_NAMESPACE_ID" ]; then
-            echo "KV_NAMESPACE_ID not set, creating a new KV namespace..."
-            OUTPUT=$(pnpm wrangler kv namespace create "cloud-mail" 2>&1) || true
+            KV_TITLE="${NAME:-cloud-mail}"
+            echo "KV_NAMESPACE_ID not set, creating KV namespace \"${KV_TITLE}\" for this repo..."
+            OUTPUT=$(pnpm wrangler kv namespace create "$KV_TITLE" 2>&1) || true
             echo "$OUTPUT"
             KV_NAMESPACE_ID=$(echo "$OUTPUT" | sed -n "s/.*id = \"\([^\"]*\)\".*/\1/p" | head -n1)
             if [ -z "$KV_NAMESPACE_ID" ]; then
@@ -147,7 +148,7 @@ jobs:
             fi
             echo "✅ Created KV namespace: ${KV_NAMESPACE_ID}"
           else
-            echo "✅ Using existing KV namespace: ${KV_NAMESPACE_ID}"
+            echo "✅ Using this repo's KV_NAMESPACE_ID: ${KV_NAMESPACE_ID}"
           fi
           
           sed -i "s|\${KV_NAMESPACE_ID}|${KV_NAMESPACE_ID}|g" "$CONFIG_FILE"
@@ -159,15 +160,15 @@ jobs:
           CONFIG_FILE="wrangler-action.toml"
           
           if [ -z "$D1_DATABASE_ID" ]; then
-            echo "D1_DATABASE_ID not set, creating a new D1 database..."
-            OUTPUT=$(pnpm wrangler d1 create cloud-mail 2>&1) || true
+            D1_NAME="${NAME:-cloud-mail}"
+            echo "D1_DATABASE_ID not set, creating D1 \"${D1_NAME}\" for this repo..."
+            OUTPUT=$(pnpm wrangler d1 create "$D1_NAME" 2>&1) || true
             echo "$OUTPUT"
             D1_DATABASE_ID=$(echo "$OUTPUT" | sed -n "s/.*database_id = \"\([^\"]*\)\".*/\1/p" | head -n1)
             if [ -z "$D1_DATABASE_ID" ]; then
-              # maybe already exists — try list
               LIST_OUTPUT=$(pnpm wrangler d1 list --json 2>&1) || true
               echo "$LIST_OUTPUT"
-              D1_DATABASE_ID=$(echo "$LIST_OUTPUT" | jq -r '.[] | select(.name=="cloud-mail") | .uuid' | head -n1)
+              D1_DATABASE_ID=$(echo "$LIST_OUTPUT" | jq -r --arg n "$D1_NAME" '.[] | select(.name==$n) | .uuid' | head -n1)
             fi
             if [ -z "$D1_DATABASE_ID" ]; then
               echo "❌ Failed to create or resolve D1 database ID."
@@ -175,7 +176,7 @@ jobs:
             fi
             echo "✅ Using D1 database: ${D1_DATABASE_ID}"
           else
-            echo "✅ Using existing D1 database: ${D1_DATABASE_ID}"
+            echo "✅ Using this repo's D1_DATABASE_ID: ${D1_DATABASE_ID}"
           fi
           
           sed -i "s|\${D1_DATABASE_ID}|${D1_DATABASE_ID}|g" "$CONFIG_FILE"
