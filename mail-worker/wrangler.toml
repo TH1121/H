@@ -6,20 +6,10 @@ keep_vars = true
 [observability]
 enabled = true
 
-# D1 / KV 不在此写死 ID（避免错误 ID 或空 ID 导致 CF 构建失败）。
-# 请在 Cloudflare 控制台 → Worker → 设置 → 绑定 中配置：
-#   - D1：binding 名必须为 db
-#   - KV：binding 名必须为 kv
-# GitHub Actions 部署仍使用 wrangler-action.toml，并自动创建/注入 ID。
-
-#[[d1_databases]]
-#binding = "db"
-#database_name = "cloud-mail"
-#database_id = ""
-
-#[[kv_namespaces]]
-#binding = "kv"
-#id = ""
+# D1 / KV 不写死在本文件；Cloudflare Git 构建请用：
+#   Deploy command = pnpm run deploy
+# 脚本会自动查找/创建 cloud-mail 的 D1 与 KV 再部署。
+# GitHub Actions 仍走 wrangler-action.toml。
 
 #[[r2_buckets]]
 #binding = "r2"			#r2对象存储绑定名默认不可修改
