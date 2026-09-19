@@ -331,10 +331,10 @@ const emailService = {
 
 		const domain = emailUtils.getDomain(accountRow.email);
 		const resendToken = resendTokens[domain];
-		const useCloudflareEmail = !!c.env.email;
+		const hasCloudflareEmail = !!c.env.email;
 
 		//如果接收方存在站外邮箱，又没有发信服务
-		if (!useCloudflareEmail && !resendToken && !allInternal) {
+		if (!hasCloudflareEmail && !resendToken && !allInternal) {
 			throw new BizError(t('noSendProvider'));
 		}
 
@@ -359,38 +359,46 @@ const emailService = {
 		}
 
 		let sendResult = {};
+		let sentByCloudflare = false;
 		const openTrackId = crypto.randomUUID();
 		html = this.injectOpenTrackPixel(c, html, openTrackId);
 
-		//存在站外邮箱时，如果配置了 Cloudflare Email Service 就优先使用，否则使用 Resend
-		if (!allInternal) {
+		const sendParams = {
+			name,
+			accountEmail: accountRow.email,
+			receiveEmail,
+			subject,
+			text,
+			html,
+			attachments: [...imageDataList, ...attachments],
+			sendType,
+			messageId: emailRow.messageId
+		};
 
-			if (useCloudflareEmail) {
-				sendResult = await this.sendByCloudflareEmail(c, {
-					name,
-					accountEmail: accountRow.email,
-					receiveEmail,
-					subject,
-					text,
-					html,
-					attachments: [...imageDataList, ...attachments],
-					sendType,
-					messageId: emailRow.messageId
-				});
-			} else {
-				sendResult = await this.sendByResend(resendToken, {
-					name,
-					accountEmail: accountRow.email,
-					receiveEmail,
-					subject,
-					text,
-					html,
-					attachments: [...imageDataList, ...attachments],
-					sendType,
-					messageId: emailRow.messageId
-				});
+		// 站外邮件：优先 Cloudflare，失败且配置了 Resend Token 时回退
+		if (!allInternal) {
+			let cfError = null;
+
+			if (hasCloudflareEmail) {
+				try {
+					sendResult = await this.sendByCloudflareEmail(c, sendParams);
+					sentByCloudflare = !sendResult?.error;
+					if (sendResult?.error) {
+						cfError = new Error(sendResult.error.message || 'Cloudflare Email send failed');
+					}
+				} catch (e) {
+					cfError = e;
+					sentByCloudflare = false;
+				}
 			}
 
+			if (!sentByCloudflare) {
+				if (!resendToken) {
+					throw cfError ? new BizError(cfError.message || String(cfError)) : new BizError(t('noSendProvider'));
+				}
+				console.warn('Cloudflare Email send failed, fallback to Resend:', cfError?.message || cfError);
+				sendResult = await this.sendByResend(resendToken, sendParams);
+			}
 		}
 
 		const { data, error } = sendResult;
@@ -413,7 +421,7 @@ const emailService = {
 		emailData.content = html;
 		emailData.text = text;
 		emailData.accountId = accountId;
-		emailData.status = useCloudflareEmail ? emailConst.status.DELIVERED : emailConst.status.SENT;
+		emailData.status = sentByCloudflare ? emailConst.status.DELIVERED : emailConst.status.SENT;
 		emailData.type = emailConst.type.SEND;
 		emailData.userId = userId;
 		emailData.resendEmailId = data?.id;

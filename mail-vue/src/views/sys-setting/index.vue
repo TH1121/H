@@ -189,11 +189,19 @@
                 </div>
               </div>
               <div class="setting-item">
-                <div><span>{{ setting.hasCfEmail ? $t('cloudflareEmailSending') : $t('resendToken') }}</span></div>
-                <div v-if="setting.hasCfEmail">
-                  <span>{{ $t('enabled') }}</span>
+                <div><span>{{ $t('cloudflareEmailSending') }}</span></div>
+                <div>
+                  <span>{{ setting.hasCfEmail ? $t('enabled') : $t('disabled') }}</span>
                 </div>
-                <div v-else>
+              </div>
+              <div class="setting-item">
+                <div>
+                  <span>{{ $t('resendToken') }}</span>
+                  <el-tooltip v-if="setting.hasCfEmail" effect="dark" content="Cloudflare 发送失败时，使用该域名的 Resend Token 重试">
+                    <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+                  </el-tooltip>
+                </div>
+                <div>
                   <el-button class="opt-button" style="margin-top: 0" @click="openResendList" size="small"
                              type="primary">
                     <Icon icon="ic:round-list" width="18" height="18"/>
