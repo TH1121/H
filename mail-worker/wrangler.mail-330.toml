@@ -22,8 +22,8 @@ id = "dfc2867e5cca4a478526c277b5c61605"
 #binding = "r2"
 #bucket_name = ""
 
-#[[send_email]]
-#name = "email"
+[[send_email]]
+name = "email"
 
 [ai]
 binding = "ai"
