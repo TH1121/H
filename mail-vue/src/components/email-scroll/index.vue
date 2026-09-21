@@ -126,7 +126,7 @@
                     <Icon class="action-icon delete" icon="uiw:delete" width="15" height="15" @click="rightDelete(item.emailId)"/>
                   </el-tooltip>
                 </div>
-                <span class="email-time" :class="{ 'hide-on-actions': props.type === 'send' || showQuickActionsAlways }" :style="(item.unread === EmailUnreadEnum.UNREAD && showUnread) ? 'font-weight: bold' : ''">{{ item.formatCreateTime }}</span>
+                <span class="email-time" :class="{ 'hide-on-actions': showQuickActionsAlways && props.type !== 'send', 'keep-visible': props.type === 'send' }" :style="(item.unread === EmailUnreadEnum.UNREAD && showUnread) ? 'font-weight: bold' : ''">{{ item.formatCreateTime }}</span>
               </div>
             </div>
             <skeletonBlock v-else-if="item.expand === 'loading'"
@@ -1331,7 +1331,7 @@ function loadData() {
       display: flex;
     }
 
-    .email-time {
+    .email-time:not(.keep-visible) {
       display: none;
     }
   }
