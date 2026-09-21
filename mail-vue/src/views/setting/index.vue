@@ -30,6 +30,24 @@
         </div>
       </div>
     </div>
+    <div class="oauth-bind" v-if="visibleOauthPlatforms.length">
+      <div class="title">{{ $t('oauthBindAccounts') }}</div>
+      <div class="oauth-row" v-for="p in visibleOauthPlatforms" :key="p.key">
+        <div class="oauth-left">
+          <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="22"/>
+          <Icon v-else :icon="p.icon" width="22" height="22"/>
+          <span class="oauth-label">{{ p.label }}</span>
+          <span class="oauth-account" v-if="boundOf(p.key)">{{ boundOf(p.key).username || boundOf(p.key).name }}</span>
+          <span class="oauth-empty" v-else>{{ $t('oauthNotBound') }}</span>
+        </div>
+        <el-button v-if="boundOf(p.key)" type="danger" plain size="small" :loading="unbindId === boundOf(p.key).oauthId" @click="unbindOauth(boundOf(p.key))">
+          {{ $t('oauthUnbind') }}
+        </el-button>
+        <el-button v-else type="primary" size="small" @click="startOauthBind(p.key)">
+          {{ $t('oauthBindBtn') }}
+        </el-button>
+      </div>
+    </div>
     <div class="language">
       <div class="title">{{$t('language')}}</div>
       <el-select
@@ -61,14 +79,15 @@
   </div>
 </template>
 <script setup>
-import {reactive, ref, defineOptions} from 'vue'
-import {resetPassword, userDelete} from "@/request/my.js";
+import {reactive, ref, defineOptions, computed, onMounted} from 'vue'
+import {resetPassword, userDelete, oauthBindList, oauthUnbind} from "@/request/my.js";
 import {useUserStore} from "@/store/user.js";
 import router from "@/router/index.js";
 import {accountSetName} from "@/request/account.js";
 import {useAccountStore} from "@/store/account.js";
 import {useI18n} from "vue-i18n";
 import {useSettingStore} from "@/store/setting.js";
+import {Icon} from "@iconify/vue";
 
 const { t } = useI18n()
 const accountStore = useAccountStore()
@@ -78,6 +97,66 @@ const setPwdLoading = ref(false)
 const setNameShow = ref(false)
 const accountName = ref(null)
 const langSelect = ref(settingStore.lang)
+const oauthBinds = ref([])
+const unbindId = ref(null)
+
+const oauthPlatforms = [
+  { key: 'google', label: 'Google', icon: 'devicon:google', iconType: 'iconify' },
+  { key: 'github', label: 'GitHub', icon: 'codicon:github-inverted', iconType: 'iconify' },
+  { key: 'linuxdo', label: 'LinuxDo', icon: '/image/linuxdo.webp', iconType: 'image' },
+]
+
+const visibleOauthPlatforms = computed(() => {
+  return oauthPlatforms.filter(p => {
+    if (boundOf(p.key)) return true
+    return settingStore.settings[p.key + 'Switch'] === 0
+  })
+})
+
+function boundOf(key) {
+  return oauthBinds.value.find(item => item.platform === key)
+}
+
+function loadOauthBinds() {
+  oauthBindList().then(list => {
+    oauthBinds.value = list || []
+  })
+}
+
+function startOauthBind(provider) {
+  const clientId = settingStore.settings[provider + 'ClientId']
+  if (!clientId) {
+    ElMessage({ message: t('oauthNoClient'), type: 'error', plain: true })
+    return
+  }
+  const redirectUri = encodeURIComponent(window.location.origin + '/login')
+  sessionStorage.setItem('oauthProvider', provider)
+  sessionStorage.setItem('oauthLinkCurrent', '1')
+  const authorizeUrls = {
+    linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
+    github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email&state=${provider}`,
+    google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
+  }
+  window.location.href = authorizeUrls[provider]
+}
+
+function unbindOauth(row) {
+  ElMessageBox.confirm(t('oauthUnbindConfirm', { name: row.username || row.name || row.platform }), {
+    confirmButtonText: t('confirm'),
+    cancelButtonText: t('cancel'),
+    type: 'warning',
+  }).then(() => {
+    unbindId.value = row.oauthId
+    oauthUnbind(row.oauthId).then(() => {
+      oauthBinds.value = oauthBinds.value.filter(item => item.oauthId !== row.oauthId)
+      ElMessage({ message: t('oauthUnbindSuccess'), type: 'success', plain: true })
+    }).finally(() => {
+      unbindId.value = null
+    })
+  }).catch(() => {})
+}
+
+onMounted(loadOauthBinds)
 
 defineOptions({
   name: 'setting'
@@ -285,6 +364,44 @@ function submitPwd() {
 
     .language-select {
       width: 100px;
+    }
+  }
+
+  .oauth-bind {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 40px;
+    font-size: 14px;
+
+    .oauth-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      max-width: 520px;
+    }
+
+    .oauth-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .oauth-label {
+      font-weight: 600;
+    }
+
+    .oauth-account {
+      color: var(--el-text-color-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .oauth-empty {
+      color: var(--secondary-text-color, #64748B);
     }
   }
 

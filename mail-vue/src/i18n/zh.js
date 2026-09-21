@@ -368,6 +368,13 @@ const zh = {
     oauthBindHint: '已有邮箱请填写密码绑定；新邮箱可不填密码，将自动创建账号',
     oauthBindNeedEmail: '请绑定一个邮箱账号',
     oauthBindNeedPwdOrKey: '已有账号请填密码，新账号请填注册码',
+    oauthBindAccounts: '第三方账号',
+    oauthNotBound: '未绑定',
+    oauthUnbind: '解绑',
+    oauthUnbindConfirm: '确定解绑 {name} 吗？解绑后仍可用邮箱密码登录。',
+    oauthUnbindSuccess: '已解绑',
+    oauthBindSuccess: '绑定成功',
+    oauthNoClient: '该登录方式尚未配置 Client ID',
     notOwner: '基础邮箱不属于您',
 }
 export default zh

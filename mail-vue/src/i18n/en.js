@@ -368,6 +368,13 @@ const en = {
     oauthBindHint: 'Existing email: enter password to bind. New email: password optional, account will be created.',
     oauthBindNeedEmail: 'Please bind an email account',
     oauthBindNeedPwdOrKey: 'Enter password for existing account, or invite code for a new one',
+    oauthBindAccounts: 'Linked accounts',
+    oauthNotBound: 'Not linked',
+    oauthUnbind: 'Unlink',
+    oauthUnbindConfirm: 'Unlink {name}? You can still sign in with email and password.',
+    oauthUnbindSuccess: 'Unlinked',
+    oauthBindSuccess: 'Linked',
+    oauthNoClient: 'Client ID is not configured for this login',
     notOwner: 'Base email does not belong to you',
 }
 

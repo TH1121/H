@@ -185,7 +185,7 @@ import {useUserStore} from "@/store/user.js";
 import {useUiStore} from "@/store/ui.js";
 import {Icon} from "@iconify/vue";
 import {cvtR2Url} from "@/utils/convert.js";
-import {loginUserInfo} from "@/request/my.js";
+import {loginUserInfo, oauthLinkCurrent} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
 import {oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
@@ -338,9 +338,29 @@ async function oauthGetUser() {
   sessionStorage.removeItem('oauthProvider')
   window.history.replaceState({}, '', window.location.origin + window.location.pathname)
 
-  loginFns[provider](code, window.location.origin + '/login').then(data => {
+  loginFns[provider](code, window.location.origin + '/login').then(async data => {
 
     bindForm.oauthUserId = data.userInfo.oauthUserId;
+    const linkCurrent = sessionStorage.getItem('oauthLinkCurrent') === '1'
+    sessionStorage.removeItem('oauthLinkCurrent')
+
+    // 个人设置页发起的绑定：挂到当前登录用户，不要切换成其他账号
+    if (linkCurrent && localStorage.getItem('token')) {
+      try {
+        await oauthLinkCurrent(data.userInfo.oauthUserId)
+        ElMessage({
+          message: t('oauthBindSuccess'),
+          type: 'success',
+          plain: true,
+        })
+        await router.replace({ name: 'setting' })
+      } catch (e) {
+        await router.replace({ name: 'setting' })
+      } finally {
+        oauthLoading.value = false
+      }
+      return
+    }
 
     if (!data.token) {
       showBindForm.value = true
@@ -357,6 +377,7 @@ async function oauthGetUser() {
     saveToken(data.token);
   }).catch(() => {
     oauthLoading.value = false
+    sessionStorage.removeItem('oauthLinkCurrent')
   })
 }
 

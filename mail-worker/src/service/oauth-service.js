@@ -73,6 +73,38 @@ const oauthService = {
 		return { userInfo: oauthRow, token: jwtToken};
 	},
 
+	async listByUserId(c, userId) {
+		return await orm(c).select({
+			oauthId: oauth.oauthId,
+			platform: oauth.platform,
+			username: oauth.username,
+			name: oauth.name,
+			avatar: oauth.avatar,
+		}).from(oauth).where(eq(oauth.userId, userId)).all();
+	},
+
+	async unbind(c, userId, oauthId) {
+		const row = await orm(c).select().from(oauth).where(eq(oauth.oauthId, oauthId)).get();
+		if (!row || Number(row.userId) !== Number(userId)) {
+			throw new BizError(t('oauthNotYours'));
+		}
+		await orm(c).delete(oauth).where(eq(oauth.oauthId, oauthId)).run();
+	},
+
+	async linkCurrentUser(c, userId, oauthUserId) {
+		const oauthRow = await this.getById(c, oauthUserId);
+		if (!oauthRow) {
+			throw new BizError(t('oauthUserNotFound'));
+		}
+		if (oauthRow.userId && Number(oauthRow.userId) !== Number(userId)) {
+			throw new BizError(t('oauthAlreadyBound'));
+		}
+		if (Number(oauthRow.userId) === Number(userId)) {
+			return oauthRow;
+		}
+		return await orm(c).update(oauth).set({ userId }).where(eq(oauth.oauthUserId, oauthUserId)).returning().get();
+	},
+
 	async linuxDoLogin(c, params) {
 
 		const { code, redirectUri } = params;

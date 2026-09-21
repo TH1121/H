@@ -110,7 +110,11 @@ router.beforeEach((to, from, next) => {
     }
 
     if (token && to.path.startsWith('/login')) {
-        return next(from.path)
+        // 已登录时仍需进入登录页处理 OAuth 回调（个人设置绑定第三方）
+        if (to.query.code || sessionStorage.getItem('oauthProvider')) {
+            return next()
+        }
+        return next(from.path && from.name ? from : { name: 'email' })
     }
 
     next()

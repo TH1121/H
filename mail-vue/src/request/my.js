@@ -12,3 +12,15 @@ export function userDelete() {
     return http.delete('/my/delete')
 }
 
+export function oauthBindList() {
+    return http.get('/my/oauth/list')
+}
+
+export function oauthUnbind(oauthId) {
+    return http.delete(`/my/oauth/${oauthId}`)
+}
+
+export function oauthLinkCurrent(oauthUserId) {
+    return http.put('/my/oauth/link', { oauthUserId })
+}
+
