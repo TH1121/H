@@ -360,6 +360,8 @@ const zh = {
     oauthSetting: 'OAuth',
     clientId: '客户端 ID',
     clientSecret: '客户端密钥',
+    oauthGetConfig: '前往获取 Client ID / Secret',
+    oauthRedirectUri: '回调地址（Redirect URI）',
     notOwner: '基础邮箱不属于您',
 }
 export default zh

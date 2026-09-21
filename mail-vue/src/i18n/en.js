@@ -360,6 +360,8 @@ const en = {
     oauthSetting: 'OAuth',
     clientId: 'Client ID',
     clientSecret: 'Client Secret',
+    oauthGetConfig: 'Open console to get Client ID / Secret',
+    oauthRedirectUri: 'Redirect URI',
     notOwner: 'Base email does not belong to you',
 }
 

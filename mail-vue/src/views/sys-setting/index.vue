@@ -539,11 +539,22 @@
           <el-button type="primary" :loading="settingLoading" @click="saveTurnstileKey">{{ $t('save') }}</el-button>
         </form>
       </el-dialog>
-      <el-dialog v-model="oauthSettingShow" :title="$t('oauthSetting') + ' - ' + oauthForm.label" width="340"
+      <el-dialog v-model="oauthSettingShow" :title="$t('oauthSetting') + ' - ' + oauthForm.label" width="380"
                  @closed="oauthForm.clientId = ''; oauthForm.clientSecret = ''; oauthForm.switch = 1">
-        <div class="dialog-content">
+        <div class="dialog-content oauth-dialog">
+          <a class="oauth-console-link" :href="oauthConsoleUrl" target="_blank" rel="noopener noreferrer">
+            <Icon icon="lucide:external-link" width="16" height="16"/>
+            <span>{{ $t('oauthGetConfig') }}</span>
+          </a>
+          <div class="oauth-callback">
+            <div class="oauth-callback-label">{{ $t('oauthRedirectUri') }}</div>
+            <div class="oauth-callback-row">
+              <el-input type="text" readonly :model-value="oauthRedirectUri"/>
+              <el-button @click="copyOauthRedirectUri">{{ $t('copy') }}</el-button>
+            </div>
+          </div>
           <el-input type="text" :placeholder="$t('clientId')" v-model="oauthForm.clientId"/>
-          <el-input type="text" style="margin-top: 15px" :placeholder="$t('clientSecret')" v-model="oauthForm.clientSecret"/>
+          <el-input type="text" :placeholder="$t('clientSecret')" v-model="oauthForm.clientSecret"/>
         </div>
         <template #footer>
           <div class="dialog-footer">
@@ -1016,9 +1027,27 @@ const turnstileForm = reactive({
 })
 
 const oauthPlatforms = [
-  { key: 'google', label: 'Google', icon: 'devicon:google', iconType: 'iconify' },
-  { key: 'github', label: 'GitHub', icon: 'codicon:github-inverted', iconType: 'iconify' },
-  { key: 'linuxdo', label: 'LinuxDo', icon: '/image/linuxdo.webp', iconType: 'image' },
+  {
+    key: 'google',
+    label: 'Google',
+    icon: 'devicon:google',
+    iconType: 'iconify',
+    consoleUrl: 'https://console.cloud.google.com/apis/credentials',
+  },
+  {
+    key: 'github',
+    label: 'GitHub',
+    icon: 'codicon:github-inverted',
+    iconType: 'iconify',
+    consoleUrl: 'https://github.com/settings/developers',
+  },
+  {
+    key: 'linuxdo',
+    label: 'LinuxDo',
+    icon: '/image/linuxdo.webp',
+    iconType: 'image',
+    consoleUrl: 'https://connect.linux.do/',
+  },
 ]
 const oauthSettingShow = ref(false)
 const oauthForm = reactive({
@@ -1027,6 +1056,10 @@ const oauthForm = reactive({
   clientId: '',
   clientSecret: '',
   switch: 1,
+})
+const oauthRedirectUri = computed(() => `${window.location.origin}/login`)
+const oauthConsoleUrl = computed(() => {
+  return oauthPlatforms.find(p => p.key === oauthForm.key)?.consoleUrl || '#'
 })
 
 const s3 = reactive({
@@ -1579,6 +1612,22 @@ function openOauthSetting(p) {
   oauthSettingShow.value = true
 }
 
+function copyOauthRedirectUri() {
+  navigator.clipboard.writeText(oauthRedirectUri.value).then(() => {
+    ElMessage({
+      message: t('copySuccessMsg'),
+      type: 'success',
+      plain: true,
+    })
+  }).catch(() => {
+    ElMessage({
+      message: t('copyFailMsg'),
+      type: 'error',
+      plain: true,
+    })
+  })
+}
+
 function saveOauth() {
   const form = {}
   form[oauthForm.key + 'ClientId'] = oauthForm.clientId
@@ -1894,6 +1943,38 @@ function editSetting(settingForm, refreshStatus = true) {
   min-width: 22px;
   flex-shrink: 0;
   margin-right: 2px;
+}
+
+.oauth-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.oauth-console-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--el-color-primary);
+  font-size: 13px;
+  text-decoration: none;
+  width: fit-content;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.oauth-callback-label {
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--secondary-text-color);
+}
+
+.oauth-callback-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .r2domain-item {
