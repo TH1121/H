@@ -7,7 +7,6 @@
                :star-add="starAdd"
                show-status
                show-quick-actions
-               :show-quick-actions-always="true"
                actionLeft="4px"
                :star-cancel="starCancel"
                @jump="jumpContent"

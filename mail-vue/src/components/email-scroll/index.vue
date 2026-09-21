@@ -112,8 +112,7 @@
                 </div>
               </div>
               <div class="email-right" :style="showUserInfo ? 'align-self: start;':''">
-                <span class="email-time" :class="{ 'hide-on-actions': showQuickActionsAlways && props.type !== 'send', 'keep-visible': props.type === 'send' }" :style="(item.unread === EmailUnreadEnum.UNREAD && showUnread) ? 'font-weight: bold' : ''">{{ item.formatCreateTime }}</span>
-                <div class="row-actions" :class="{ 'always-show': props.type === 'send' || showQuickActionsAlways }" v-if="showQuickActions" @click.stop>
+                <div class="row-actions" :class="{ 'always-show': showQuickActionsAlways }" v-if="showQuickActions" @click.stop>
                   <el-tooltip effect="dark" :content="t('reply')" v-if="canReply">
                     <Icon class="action-icon" icon="la:reply" width="18" height="18" @click="openReply(item)"/>
                   </el-tooltip>
@@ -127,6 +126,7 @@
                     <Icon class="action-icon delete" icon="uiw:delete" width="15" height="15" @click="rightDelete(item.emailId)"/>
                   </el-tooltip>
                 </div>
+                <span class="email-time" :class="{ 'hide-on-actions': showQuickActionsAlways }" :style="(item.unread === EmailUnreadEnum.UNREAD && showUnread) ? 'font-weight: bold' : ''">{{ item.formatCreateTime }}</span>
               </div>
             </div>
             <skeletonBlock v-else-if="item.expand === 'loading'"
@@ -1326,11 +1326,7 @@ function loadData() {
       min-width: 56px;
       text-align: right;
       flex-shrink: 0;
-
-      &.keep-visible {
-        min-width: 88px;
-        font-variant-numeric: tabular-nums;
-      }
+      font-variant-numeric: tabular-nums;
     }
   }
 
@@ -1343,7 +1339,7 @@ function loadData() {
       display: flex;
     }
 
-    .email-time:not(.keep-visible) {
+    .email-time {
       display: none;
     }
   }
