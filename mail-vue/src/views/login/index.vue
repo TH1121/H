@@ -128,7 +128,7 @@
         </template>
       </div>
     </div>
-    <el-dialog class="bind-dialog" v-model="showBindForm"  title="注册邮箱" >
+    <el-dialog class="bind-dialog" v-model="showBindForm" :title="$t('oauthBindTitle')" >
       <div class="bind-container">
         <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="bindForm.email" type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="bind">
           <template #append v-if="!hideLoginDomain">
@@ -153,12 +153,15 @@
             </div>
           </template>
         </el-input>
+        <el-input v-model="bindForm.password" :placeholder="$t('oauthBindPwdTip')" type="password"
+                  autocomplete="off" @keyup.enter="bind"/>
         <el-input v-if="settingStore.settings.regKey === 0" v-model="bindForm.code" :placeholder="$t('regKey')"
                   type="text" autocomplete="off" @keyup.enter="bind"/>
         <el-input v-if="settingStore.settings.regKey === 2" v-model="bindForm.code"
                   :placeholder="$t('regKeyOptional')" type="text" autocomplete="off" @keyup.enter="bind"/>
+        <div class="bind-hint">{{ $t('oauthBindHint') }}</div>
         <el-button class="btn" type="primary" @click="bind" :loading="bindLoading"
-        >绑定
+        >{{ $t('oauthBindBtn') }}
         </el-button>
       </div>
     </el-dialog>
@@ -220,7 +223,8 @@ const oauthProviders = computed(() => {
 const bindForm = reactive({
   email: '',
   oauthUserId: '',
-  code: ''
+  code: '',
+  password: '',
 })
 
 const form = reactive({
@@ -342,7 +346,7 @@ async function oauthGetUser() {
       showBindForm.value = true
       oauthLoading.value = false
       ElMessage({
-        message: '请注册绑定一个邮箱',
+        message: t('oauthBindNeedEmail'),
         type: 'warning',
         duration: 4000,
         plain: true,
@@ -393,10 +397,10 @@ function bind() {
 
   if (settingStore.settings.regKey === 0) {
 
-    if (!bindForm.code) {
+    if (!bindForm.password && !bindForm.code) {
 
       ElMessage({
-        message: t('emptyRegKeyMsg'),
+        message: t('oauthBindNeedPwdOrKey'),
         type: 'error',
         plain: true,
       })
@@ -405,7 +409,7 @@ function bind() {
 
   }
 
-  const form = {email, oauthUserId: bindForm.oauthUserId, code: bindForm.code}
+  const form = {email, oauthUserId: bindForm.oauthUserId, code: bindForm.code, password: bindForm.password}
 
   bindLoading.value = true
   oauthBindUser(form).then(data => {
@@ -807,6 +811,12 @@ function submitRegister() {
   display: grid;
   grid-template-columns: 1fr;
   gap: 15px;
+}
+
+.bind-hint {
+  font-size: 12px;
+  color: var(--secondary-text-color, #64748B);
+  line-height: 1.5;
 }
 
 .setting-icon {

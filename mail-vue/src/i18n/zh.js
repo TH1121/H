@@ -362,6 +362,12 @@ const zh = {
     clientSecret: '客户端密钥',
     oauthGetConfig: '前往获取 Client ID / Secret',
     oauthRedirectUri: '回调地址（Redirect URI）',
+    oauthBindTitle: '绑定邮箱',
+    oauthBindBtn: '绑定',
+    oauthBindPwdTip: '密码（已有账号必填）',
+    oauthBindHint: '已有邮箱请填写密码绑定；新邮箱可不填密码，将自动创建账号',
+    oauthBindNeedEmail: '请绑定一个邮箱账号',
+    oauthBindNeedPwdOrKey: '已有账号请填密码，新账号请填注册码',
     notOwner: '基础邮箱不属于您',
 }
 export default zh

@@ -3,33 +3,74 @@ import orm from "../entity/orm";
 import {oauth} from "../entity/oauth";
 import { eq, inArray } from 'drizzle-orm';
 import userService from "./user-service";
+import accountService from "./account-service";
 import loginService from "./login-service";
 import cryptoUtils from "../utils/crypto-utils";
 import settingService from "./setting-service";
+import { isDel, userConst } from "../const/entity-const";
 import {t} from '../i18n/i18n';
 
 const oauthService = {
 
 	async bindUser(c, params) {
 
-		const { email, oauthUserId, code } = params;
+		const { email, oauthUserId, code, password } = params;
+
+		if (!email || !oauthUserId) {
+			throw new BizError(t('oauthBindParamsEmpty'));
+		}
 
 		const oauthRow = await this.getById(c, oauthUserId);
 
-		let userRow = await userService.selectByIdIncludeDel(c, oauthRow.userId);
-
-		if (userRow) {
-			throw new BizError('用户已绑定有邮箱')
+		if (!oauthRow) {
+			throw new BizError(t('oauthUserNotFound'));
 		}
 
-		await loginService.register(c, { email, password: cryptoUtils.genRandomPwd(), code }, true);
+		let boundUser = oauthRow.userId
+			? await userService.selectByIdIncludeDel(c, oauthRow.userId)
+			: null;
 
-		userRow = await userService.selectByEmail(c, email);
+		if (boundUser) {
+			throw new BizError(t('oauthAlreadyBound'));
+		}
 
-		orm(c).update(oauth).set({ userId: userRow.userId }).where(eq(oauth.oauthUserId, oauthUserId)).run();
-		const jwtToken = await loginService.login(c, { email, password: null }, true);
+		const accountRow = await accountService.selectByEmailIncludeDel(c, email);
 
-		return { userInfo: oauthRow, token: jwtToken}
+		if (accountRow && accountRow.isDel === isDel.DELETE) {
+			throw new BizError(t('isDelUser'));
+		}
+
+		let userRow;
+
+		if (accountRow) {
+			// 已注册邮箱：校验密码后绑定
+			if (!password) {
+				throw new BizError(t('oauthNeedPwd'));
+			}
+
+			userRow = await userService.selectByEmailIncludeDel(c, email);
+
+			if (!userRow) {
+				throw new BizError(t('notExistUser'));
+			}
+
+			if (userRow.status === userConst.status.BAN) {
+				throw new BizError(t('isBanUser'));
+			}
+
+			if (!await cryptoUtils.verifyPassword(password, userRow.salt, userRow.password)) {
+				throw new BizError(t('IncorrectPwd'));
+			}
+		} else {
+			// 新邮箱：走注册流程
+			await loginService.register(c, { email, password: password || cryptoUtils.genRandomPwd(), code }, true);
+			userRow = await userService.selectByEmail(c, email);
+		}
+
+		await orm(c).update(oauth).set({ userId: userRow.userId }).where(eq(oauth.oauthUserId, oauthUserId)).run();
+		const jwtToken = await loginService.login(c, { email: userRow.email, password: null }, true);
+
+		return { userInfo: oauthRow, token: jwtToken};
 	},
 
 	async linuxDoLogin(c, params) {

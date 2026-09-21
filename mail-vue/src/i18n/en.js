@@ -362,6 +362,12 @@ const en = {
     clientSecret: 'Client Secret',
     oauthGetConfig: 'Open console to get Client ID / Secret',
     oauthRedirectUri: 'Redirect URI',
+    oauthBindTitle: 'Bind Email',
+    oauthBindBtn: 'Bind',
+    oauthBindPwdTip: 'Password (required for existing accounts)',
+    oauthBindHint: 'Existing email: enter password to bind. New email: password optional, account will be created.',
+    oauthBindNeedEmail: 'Please bind an email account',
+    oauthBindNeedPwdOrKey: 'Enter password for existing account, or invite code for a new one',
     notOwner: 'Base email does not belong to you',
 }
 
