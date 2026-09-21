@@ -112,6 +112,7 @@
                 </div>
               </div>
               <div class="email-right" :style="showUserInfo ? 'align-self: start;':''">
+                <span class="email-time" :class="{ 'hide-on-actions': showQuickActionsAlways && props.type !== 'send', 'keep-visible': props.type === 'send' }" :style="(item.unread === EmailUnreadEnum.UNREAD && showUnread) ? 'font-weight: bold' : ''">{{ item.formatCreateTime }}</span>
                 <div class="row-actions" :class="{ 'always-show': props.type === 'send' || showQuickActionsAlways }" v-if="showQuickActions" @click.stop>
                   <el-tooltip effect="dark" :content="t('reply')" v-if="canReply">
                     <Icon class="action-icon" icon="la:reply" width="18" height="18" @click="openReply(item)"/>
@@ -126,7 +127,6 @@
                     <Icon class="action-icon delete" icon="uiw:delete" width="15" height="15" @click="rightDelete(item.emailId)"/>
                   </el-tooltip>
                 </div>
-                <span class="email-time" :class="{ 'hide-on-actions': showQuickActionsAlways && props.type !== 'send', 'keep-visible': props.type === 'send' }" :style="(item.unread === EmailUnreadEnum.UNREAD && showUnread) ? 'font-weight: bold' : ''">{{ item.formatCreateTime }}</span>
               </div>
             </div>
             <skeletonBlock v-else-if="item.expand === 'loading'"
@@ -259,7 +259,7 @@ import {useEmailStore} from "@/store/email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useSettingStore} from "@/store/setting.js";
 import {sleep} from "@/utils/time-utils.js"
-import {fromNow} from "@/utils/day.js";
+import {fromNow, formatListDate} from "@/utils/day.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum, EmailOpenedEnum} from "@/enums/email-enum.js";
 import { UseVirtualList } from '@vueuse/components'
@@ -439,7 +439,9 @@ onActivated(() => {
 onMounted(() => {
   timer = setInterval(() => {
     emailList.forEach(email => {
-      email.formatCreateTime = fromNow(email.createTime);
+      email.formatCreateTime = props.type === 'send'
+        ? formatListDate(email.createTime)
+        : fromNow(email.createTime);
     })
   }, 1000 * 60);
 })
@@ -778,7 +780,9 @@ function addItem(email) {
     return false;
   }
 
-  email.formatCreateTime = fromNow(email.formatCreateTime);
+  email.formatCreateTime = props.type === 'send'
+    ? formatListDate(email.createTime)
+    : fromNow(email.createTime);
 
   if (props.timeSort) {
     if (noLoading.value) {
@@ -931,7 +935,9 @@ function getEmailList(refresh = false) {
 
 function handleList(list) {
   list.forEach(email => {
-    email.formatCreateTime = fromNow(email.createTime);
+    email.formatCreateTime = props.type === 'send'
+      ? formatListDate(email.createTime)
+      : fromNow(email.createTime);
     email.test = t('received')
     const statusIconMap = {
       0: { icon: 'ic:round-mark-email-read', color: '#10B981', content: t('received') },
@@ -1319,6 +1325,12 @@ function loadData() {
     .email-time {
       min-width: 56px;
       text-align: right;
+      flex-shrink: 0;
+
+      &.keep-visible {
+        min-width: 88px;
+        font-variant-numeric: tabular-nums;
+      }
     }
   }
 

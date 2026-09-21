@@ -80,6 +80,20 @@ export function formatDetailDate(time) {
     }
 }
 
+/** 列表用具体时间（含时分），非相对时间 */
+export function formatListDate(time) {
+    const d = dayjs.utc(time).tz(timeZone);
+    const now = dayjs();
+    if (settingStore.lang === 'en') {
+        return d.year() === now.year()
+            ? d.format('MMM D, HH:mm')
+            : d.format('YYYY/MM/DD HH:mm');
+    }
+    return d.year() === now.year()
+        ? d.format('M月D日 HH:mm')
+        : d.format('YYYY/M/D HH:mm');
+}
+
 export function tzDayjs(time) {
     return dayjs.utc(time).tz(timeZone)
 }
