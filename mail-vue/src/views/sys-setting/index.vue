@@ -472,12 +472,6 @@
                       <Icon icon="codicon:github-inverted" width="22" height="22"/>
                     </template>
                   </el-button>
-                  <el-button @click="jump('https://t.me/cloud_mail_tg')">
-                    Telegram
-                    <template #icon>
-                      <Icon icon="logos:telegram" width="30" height="30"/>
-                    </template>
-                  </el-button>
                 </div>
               </div>
               <div class="concerning-item">
@@ -963,7 +957,7 @@ defineOptions({
   name: 'sys-setting'
 })
 
-const currentVersion = 'v3.3.0'
+const currentVersion = 'v1.0.0'
 const hasUpdate = ref(false)
 let getUpdateErrorCount = 1;
 const {t, locale} = useI18n();
