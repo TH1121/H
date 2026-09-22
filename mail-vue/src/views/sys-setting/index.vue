@@ -472,6 +472,12 @@
                       <Icon icon="codicon:github-inverted" width="22" height="22"/>
                     </template>
                   </el-button>
+                  <el-button @click="jump('https://t.me/Yequn_1')">
+                    Telegram
+                    <template #icon>
+                      <Icon icon="logos:telegram" width="30" height="30"/>
+                    </template>
+                  </el-button>
                 </div>
               </div>
               <div class="concerning-item">
