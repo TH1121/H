@@ -1,0 +1,13 @@
+{
+  "modelVersion": "5.0.0",
+  "name": "CloudMail",
+  "version": "1.0.0",
+  "description": "Cloud Mail HarmonyOS NEXT Web shell",
+  "main": "",
+  "author": {},
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@ohos/hypium": "1.0.19"
+  }
+}

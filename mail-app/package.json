@@ -1,0 +1,33 @@
+{
+  "name": "mail-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloud Mail multi-platform shell (Android / iOS / HarmonyOS) for store publishing",
+  "scripts": {
+    "sync": "npx cap sync",
+    "sync:android": "npx cap sync android",
+    "sync:ios": "npx cap sync ios",
+    "open:android": "npx cap open android",
+    "open:ios": "npx cap open ios",
+    "build:android:debug": "cd android && ./gradlew assembleDebug",
+    "build:android:release": "cd android && ./gradlew assembleRelease",
+    "build:android:bundle": "cd android && ./gradlew bundleRelease",
+    "set-server": "node scripts/set-server.mjs",
+    "assets": "npx capacitor-assets generate --android --ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/app": "^7.1.0",
+    "@capacitor/core": "^7.4.3",
+    "@capacitor/ios": "^7.6.9",
+    "@capacitor/splash-screen": "^7.0.3",
+    "@capacitor/status-bar": "^7.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^7.4.3"
+  },
+  "allowScripts": {
+    "sharp@0.32.6": true
+  }
+}

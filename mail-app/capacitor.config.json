@@ -1,0 +1,42 @@
+{
+  "appId": "vip.aegiswallet.mail",
+  "appName": "Cloud Mail",
+  "webDir": "www",
+  "server": {
+    "url": "https://aegis-wallet.vip",
+    "cleartext": false,
+    "allowNavigation": [
+      "aegis-wallet.vip",
+      "*.aegis-wallet.vip",
+      "accounts.google.com",
+      "*.google.com",
+      "*.googleapis.com",
+      "github.com",
+      "*.github.com",
+      "connect.linux.do",
+      "*.linux.do"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#05080F",
+    "webContentsDebuggingEnabled": false
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "backgroundColor": "#05080F",
+    "preferredContentMode": "mobile"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "launchShowDuration": 1500,
+      "backgroundColor": "#05080F",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#05080F"
+    }
+  }
+}

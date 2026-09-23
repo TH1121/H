@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Cloud Mail</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #05080F;
+      color: #E2E8F0;
+    }
+    .wrap {
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 24px;
+      text-align: center;
+    }
+    .logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 16px;
+      background: linear-gradient(145deg, #0EA5E9, #06B6D4);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 28px;
+      color: #fff;
+    }
+    h1 { margin: 0; font-size: 22px; font-weight: 650; }
+    p { margin: 0; color: #94A3B8; font-size: 14px; line-height: 1.6; max-width: 280px; }
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid rgba(6, 182, 212, 0.25);
+      border-top-color: #06B6D4;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-top: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo">M</div>
+    <h1>Cloud Mail</h1>
+    <p>正在连接邮箱服务…<br>若长时间无响应，请检查网络后重开应用。</p>
+    <div class="spinner" aria-hidden="true"></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,3 @@
+# sdk.dir 指向本机 HarmonyOS SDK（DevEco Studio 安装后自动生成也可）
+# 示例（macOS）:
+# sdk.dir=/Users/你的用户名/Library/Huawei/Sdk

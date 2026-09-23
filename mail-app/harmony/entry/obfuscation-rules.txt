@@ -1,0 +1,4 @@
+# Keep obfuscation disabled for the Web shell by default.
+-enable
+-keep-property-name
+-keep-global-name
