@@ -51,6 +51,23 @@
           <el-option key="4" :label="$t('selectDeleted')" value="delete"/>
           <el-option key="4" :label="$t('noRecipientTitle')" value="noone"/>
         </el-select>
+        <el-date-picker
+            v-model="filterDateRange"
+            class="filter-date"
+            type="daterange"
+            unlink-panels
+            :teleported="true"
+            :range-separator="t('to')"
+            :start-placeholder="t('startDate')"
+            :end-placeholder="t('endDate')"
+            size="default"
+            @change="search"
+        />
+        <el-select v-model="params.unread" class="unread-select" :placeholder="$t('all')" @change="search">
+          <el-option :label="$t('all')" value=""/>
+          <el-option :label="$t('unreadMail')" value="0"/>
+          <el-option :label="$t('readMail')" value="1"/>
+        </el-select>
         <Icon class="icon" icon="iconoir:search" @click="search" width="20" height="20"/>
         <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-down-outline"
               v-if="params.timeSort === 0" width="28" height="28"/>
@@ -115,6 +132,7 @@ const {t} = useI18n();
 const emailStore = useEmailStore();
 const settingStore = useSettingStore();
 const clearTime = ref('')
+const filterDateRange = ref(null)
 const sysEmailScroll = ref({})
 const searchValue = ref('')
 const mySelect = ref()
@@ -136,7 +154,10 @@ const params = reactive({
   accountEmail: null,
   name: null,
   subject: null,
-  searchType: 'name'
+  searchType: 'name',
+  unread: '',
+  startTime: '',
+  endTime: '',
 })
 
 const clearParams = reactive({
@@ -237,6 +258,7 @@ function rightSearch(type, value) {
 
 function refreshBefore() {
   searchValue.value = null
+  filterDateRange.value = null
   params.timeSort = 0
   params.type = 'receive'
   params.userEmail = null
@@ -244,6 +266,19 @@ function refreshBefore() {
   params.name = null
   params.subject = null
   params.searchType = 'name'
+  params.unread = ''
+  params.startTime = ''
+  params.endTime = ''
+}
+
+function syncFilterDate() {
+  if (filterDateRange.value?.length === 2) {
+    params.startTime = toUtc(filterDateRange.value[0]).format("YYYY-MM-DD HH:mm:ss")
+    params.endTime = toUtc(filterDateRange.value[1]).add(1, 'day').format("YYYY-MM-DD HH:mm:ss")
+  } else {
+    params.startTime = ''
+    params.endTime = ''
+  }
 }
 
 function search() {
@@ -269,6 +304,7 @@ function search() {
     params.subject = searchValue.value
   }
 
+  syncFilterDate()
   sysEmailScroll.value.refreshList();
 }
 
@@ -291,7 +327,14 @@ function jumpContent(email) {
 
 
 function getEmailList(emailId, size) {
-  return emailStore.fetchList(full => allEmailList({emailId, size, full, ...params}))
+  syncFilterDate()
+  const query = {...params}
+  if (query.unread !== '0' && query.unread !== '1') {
+    delete query.unread
+  }
+  if (!query.startTime) delete query.startTime
+  if (!query.endTime) delete query.endTime
+  return emailStore.fetchList(full => allEmailList({emailId, size, full, ...query}))
 }
 
 async function latest() {
@@ -318,6 +361,10 @@ async function latest() {
 
 
     if (params.type !== 'receive') {
+      continue
+    }
+
+    if (params.unread === '0' || params.unread === '1' || params.startTime || params.endTime || searchValue.value) {
       continue
     }
 
@@ -459,6 +506,33 @@ async function latest() {
 
   :deep(.el-select__wrapper) {
     min-height: 28px;
+  }
+}
+
+.unread-select {
+  margin-bottom: 2px;
+  width: 96px;
+
+  :deep(.el-select__wrapper) {
+    min-height: 28px;
+  }
+}
+
+.filter-date {
+  width: 240px;
+  max-width: 100%;
+
+  :deep(.el-range-input) {
+    font-size: 12px;
+  }
+
+  :deep(.el-range-separator) {
+    flex: 0;
+    padding: 0 4px;
+  }
+
+  @media (max-width: 767px) {
+    width: 200px;
   }
 }
 

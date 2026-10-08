@@ -376,5 +376,12 @@ const zh = {
     oauthBindSuccess: '绑定成功',
     oauthNoClient: '该登录方式尚未配置 Client ID',
     notOwner: '基础邮箱不属于您',
+    unreadMail: '未读',
+    readMail: '已读',
+    filterByFromEmail: '发件人邮箱',
+    filterByToEmail: '收件人邮箱',
+    filterByEmail: '邮箱地址',
+    startDate: '开始日期',
+    endDate: '结束日期',
 }
 export default zh

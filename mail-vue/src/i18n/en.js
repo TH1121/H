@@ -376,6 +376,13 @@ const en = {
     oauthBindSuccess: 'Linked',
     oauthNoClient: 'Client ID is not configured for this login',
     notOwner: 'Base email does not belong to you',
+    unreadMail: 'Unread',
+    readMail: 'Read',
+    filterByFromEmail: 'From address',
+    filterByToEmail: 'To address',
+    filterByEmail: 'Email address',
+    startDate: 'Start date',
+    endDate: 'End date',
 }
 
 export default en

@@ -28,7 +28,7 @@ const emailService = {
 
 	async list(c, params, userId) {
 
-		let { emailId, type, accountId, size, timeSort, allReceive, full } = params;
+		let { emailId, type, accountId, size, timeSort, allReceive, full, address, startTime, endTime, unread, opened } = params;
 
 		size = Number(size);
 		type = Number(type);
@@ -65,8 +65,9 @@ const emailService = {
 			allReceive = accountRow.allReceive;
 		}
 
-		const filters = this.emailListFilters({ userId, accountId, type, allReceive, emailId, timeSort });
-		const countFilters = this.emailListFilters({ userId, accountId, type, allReceive, withCursor: false });
+		const filterOpts = { userId, accountId, type, allReceive, emailId, timeSort, address, startTime, endTime, unread, opened };
+		const filters = this.emailListFilters(filterOpts);
+		const countFilters = this.emailListFilters({ ...filterOpts, withCursor: false });
 		const columns = full ? emailListColumns : emailBriefColumns;
 
 		const query = orm(c)
@@ -155,7 +156,7 @@ const emailService = {
 		return list;
 	},
 
-	emailListFilters({ userId, accountId, type, allReceive, emailId, timeSort, withCursor = true }) {
+	emailListFilters({ userId, accountId, type, allReceive, emailId, timeSort, address, startTime, endTime, unread, opened, withCursor = true }) {
 		const conditions = [
 			eq(email.userId, userId),
 			eq(email.type, type),
@@ -165,13 +166,57 @@ const emailService = {
 		if (!allReceive) {
 			conditions.push(eq(email.accountId, accountId));
 		}
+		this.appendListExtraFilters(conditions, { type, address, startTime, endTime, unread, opened });
 		if (withCursor && emailId) {
 			conditions.push(timeSort ? gt(email.emailId, emailId) : lt(email.emailId, emailId));
 		}
 		return conditions;
 	},
 
-	allEmailListFilters({ emailId, name, subject, accountEmail, userEmail, type, timeSort, withCursor = true }) {
+	appendListExtraFilters(conditions, { type, address, startTime, endTime, unread, opened }) {
+		const addr = typeof address === 'string' ? address.trim() : '';
+		if (addr) {
+			const like = addr + '%';
+			if (Number(type) === emailConst.type.SEND || type === 'send') {
+				conditions.push(
+					or(
+						sql`${email.toEmail} COLLATE NOCASE LIKE ${like}`,
+						sql`${email.toName} COLLATE NOCASE LIKE ${like}`,
+					)
+				);
+			} else if (Number(type) === emailConst.type.RECEIVE || type === 'receive') {
+				conditions.push(
+					or(
+						sql`${email.sendEmail} COLLATE NOCASE LIKE ${like}`,
+						sql`${email.name} COLLATE NOCASE LIKE ${like}`,
+					)
+				);
+			} else {
+				conditions.push(
+					or(
+						sql`${email.sendEmail} COLLATE NOCASE LIKE ${like}`,
+						sql`${email.toEmail} COLLATE NOCASE LIKE ${like}`,
+						sql`${email.name} COLLATE NOCASE LIKE ${like}`,
+						sql`${email.toName} COLLATE NOCASE LIKE ${like}`,
+					)
+				);
+			}
+		}
+		if (startTime) {
+			conditions.push(gte(email.createTime, `${startTime}`));
+		}
+		if (endTime) {
+			conditions.push(lte(email.createTime, `${endTime}`));
+		}
+		if (unread === 0 || unread === 1 || unread === '0' || unread === '1') {
+			conditions.push(eq(email.unread, Number(unread)));
+		}
+		if (opened === 0 || opened === 1 || opened === '0' || opened === '1') {
+			conditions.push(eq(email.opened, Number(opened)));
+		}
+	},
+
+	allEmailListFilters({ emailId, name, subject, accountEmail, userEmail, type, timeSort, address, startTime, endTime, unread, opened, withCursor = true }) {
 		const conditions = [];
 
 		if (type === 'send') {
@@ -210,6 +255,8 @@ const emailService = {
 		if (subject) {
 			conditions.push(sql`${email.subject} COLLATE NOCASE LIKE ${subject + '%'}`);
 		}
+
+		this.appendListExtraFilters(conditions, { type, address, startTime, endTime, unread, opened });
 
 		if (withCursor && emailId) {
 			conditions.push(timeSort ? gt(email.emailId, emailId) : lt(email.emailId, emailId));
@@ -990,7 +1037,7 @@ const emailService = {
 
 	async allList(c, params) {
 
-		let { emailId, size, name, subject, accountEmail, userEmail, type, timeSort, full } = params;
+		let { emailId, size, name, subject, accountEmail, userEmail, type, timeSort, full, address, startTime, endTime, unread, opened } = params;
 
 		size = Number(size);
 		emailId = Number(emailId) || 0;
@@ -1015,8 +1062,9 @@ const emailService = {
 
 		full = full === 1;
 
-		const filters = this.allEmailListFilters({ emailId, name, subject, accountEmail, userEmail, type, timeSort });
-		const countFilters = this.allEmailListFilters({ emailId, name, subject, accountEmail, userEmail, type, timeSort, withCursor: false });
+		const filterOpts = { emailId, name, subject, accountEmail, userEmail, type, timeSort, address, startTime, endTime, unread, opened };
+		const filters = this.allEmailListFilters(filterOpts);
+		const countFilters = this.allEmailListFilters({ ...filterOpts, withCursor: false });
 		const columns = full ? emailListColumns : emailBriefColumns;
 
 		const query = orm(c).select({ ...columns, userEmail: user.email })

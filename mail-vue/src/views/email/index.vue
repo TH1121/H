@@ -13,6 +13,13 @@
                @jump="jumpContent"
   >
     <template #first>
+      <emailFilter
+          mode="receive"
+          v-model:address="params.address"
+          v-model:date-range="dateRange"
+          v-model:status="params.unread"
+          @search="applyFilter"
+      />
       <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-down-outline"
             v-if="params.timeSort === 0" width="28" height="28"/>
       <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-up-outline" v-else
@@ -27,13 +34,15 @@ import {useAccountStore} from "@/store/account.js";
 import {useEmailStore} from "@/store/email.js";
 import {useSettingStore} from "@/store/setting.js";
 import emailScroll from "@/components/email-scroll/index.vue"
+import emailFilter from "@/components/email-filter/index.vue"
 import {emailList, emailDelete, emailLatest, emailRead} from "@/request/email.js";
 import {starAdd, starCancel} from "@/request/star.js";
-import {defineOptions, h, onMounted, reactive, ref, watch} from "vue";
+import {defineOptions, onMounted, reactive, ref, watch} from "vue";
 import {sleep} from "@/utils/time-utils.js";
 import router from "@/router/index.js";
 import {Icon} from "@iconify/vue";
 import { useRoute } from 'vue-router'
+import {toUtc} from "@/utils/day.js";
 
 defineOptions({
   name: 'email'
@@ -44,8 +53,13 @@ const emailStore = useEmailStore();
 const accountStore = useAccountStore();
 const settingStore = useSettingStore();
 const scroll = ref({})
+const dateRange = ref(null)
 const params = reactive({
   timeSort: 0,
+  address: '',
+  unread: '',
+  startTime: '',
+  endTime: '',
 })
 
 onMounted(() => {
@@ -57,6 +71,34 @@ onMounted(() => {
 watch(() => accountStore.currentAccountId, () => {
   scroll.value.refreshList();
 })
+
+function buildFilters() {
+  const filters = {}
+  if (params.address?.trim()) filters.address = params.address.trim()
+  if (params.startTime) filters.startTime = params.startTime
+  if (params.endTime) filters.endTime = params.endTime
+  if (params.unread === '0' || params.unread === '1') filters.unread = params.unread
+  return filters
+}
+
+function hasActiveFilters() {
+  return Object.keys(buildFilters()).length > 0
+}
+
+function syncDateRangeToParams() {
+  if (dateRange.value?.length === 2) {
+    params.startTime = toUtc(dateRange.value[0]).format("YYYY-MM-DD HH:mm:ss")
+    params.endTime = toUtc(dateRange.value[1]).add(1, 'day').format("YYYY-MM-DD HH:mm:ss")
+  } else {
+    params.startTime = ''
+    params.endTime = ''
+  }
+}
+
+function applyFilter() {
+  syncDateRangeToParams()
+  scroll.value.refreshList();
+}
 
 function changeTimeSort() {
   params.timeSort = params.timeSort ? 0 : 1
@@ -81,6 +123,10 @@ async function latest() {
     await sleep(autoRefresh > 1 ? autoRefresh * 1000 : 3000);
 
     if (route.name !== 'email') {
+      continue;
+    }
+
+    if (hasActiveFilters()) {
       continue;
     }
 
@@ -140,10 +186,11 @@ function cancelStar(email) {
 }
 
 function getEmailList(emailId, size) {
+  syncDateRangeToParams()
   const accountId =  accountStore.currentAccountId;
   const allReceive = accountStore.currentAccount.allReceive;
   return emailStore.fetchList(full =>
-    emailList(accountId, allReceive, emailId, params.timeSort, size, 0, full)
+    emailList(accountId, allReceive, emailId, params.timeSort, size, 0, full, buildFilters())
   ).then(data => {
     data.latestEmail.reqAccountId = accountId;
     data.latestEmail.allReceive = allReceive;
