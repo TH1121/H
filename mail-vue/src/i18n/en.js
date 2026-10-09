@@ -383,6 +383,16 @@ const en = {
     filterByEmail: 'Email address',
     startDate: 'Start date',
     endDate: 'End date',
+    translateEmail: 'Translate',
+    translating: 'Translating…',
+    translateTo: 'Translate to',
+    showOriginal: 'Show original',
+    showTranslation: 'Show translation',
+    translateSuccess: 'Translated',
+    translateLangZh: 'Chinese',
+    translateLangEn: 'English',
+    translateLangJa: 'Japanese',
+    translateLangKo: 'Korean',
 }
 
 export default en

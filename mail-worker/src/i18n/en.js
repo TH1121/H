@@ -22,6 +22,8 @@ const en = {
 	oauthAlreadyBound: 'This OAuth account is already bound to an email',
 	oauthNeedPwd: 'This email is already registered, enter password to bind',
 	oauthNotYours: 'This OAuth account does not belong to the current user',
+	aiNotConfigured: 'AI is not configured for translation',
+	translateEmpty: 'Email content is empty and cannot be translated',
 	daySendLimit: 'Daily send limit reached',
 	totalSendLimit: 'Total send limit reached',
 	daySendLack: 'Not enough remaining sends today',

@@ -383,5 +383,15 @@ const zh = {
     filterByEmail: '邮箱地址',
     startDate: '开始日期',
     endDate: '结束日期',
+    translateEmail: '翻译',
+    translating: '翻译中…',
+    translateTo: '翻译为',
+    showOriginal: '显示原文',
+    showTranslation: '显示译文',
+    translateSuccess: '翻译完成',
+    translateLangZh: '中文',
+    translateLangEn: 'English',
+    translateLangJa: '日本語',
+    translateLangKo: '한국어',
 }
 export default zh

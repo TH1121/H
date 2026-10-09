@@ -9,12 +9,33 @@
       </span>
       <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openReply" icon="la:reply" width="21" height="21" />
       <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openForward" icon="iconoir:arrow-up-right" width="20" height="20" />
+      <el-dropdown trigger="click" @command="handleTranslate">
+        <span class="translate-trigger" :class="{ loading: translating }" :title="$t('translateEmail')">
+          <Icon class="icon" :icon="translating ? 'svg-spinners:180-ring' : 'material-symbols:translate-rounded'" width="20" height="20"/>
+        </span>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item disabled>{{ $t('translateTo') }}</el-dropdown-item>
+            <el-dropdown-item command="zh">{{ $t('translateLangZh') }}</el-dropdown-item>
+            <el-dropdown-item command="en">{{ $t('translateLangEn') }}</el-dropdown-item>
+            <el-dropdown-item command="ja">{{ $t('translateLangJa') }}</el-dropdown-item>
+            <el-dropdown-item command="ko">{{ $t('translateLangKo') }}</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+      <span
+          v-if="translated"
+          class="translate-toggle"
+          @click="showTranslated = !showTranslated"
+      >
+        {{ showTranslated ? $t('showOriginal') : $t('showTranslation') }}
+      </span>
     </div>
     <div></div>
     <el-scrollbar class="scrollbar">
       <div class="container">
         <div class="email-title">
-          {{ email.subject }}
+          {{ displaySubject }}
         </div>
         <div class="content">
           <div class="email-info">
@@ -30,13 +51,14 @@
                 <div>{{ formatDetailDate(email.createTime) }}</div>
               </div>
             </div>
+            <el-alert v-if="showTranslated && translated" :closable="false" :title="translateBanner" class="email-msg" type="success" show-icon />
             <el-alert v-if="email.status === 3" :closable="false" :title="toMessage(email.message)" class="email-msg" type="error" show-icon />
             <el-alert v-if="email.status === 4" :closable="false" :title="$t('complained')" class="email-msg" type="warning" show-icon />
             <el-alert v-if="email.status === 5" :closable="false" :title="$t('delayed')" class="email-msg" type="warning" show-icon />
           </div>
           <el-scrollbar class="htm-scrollbar" :class="!email.attList?.length ? 'bottom-distance' : ''">
-            <ShadowHtml class="shadow-html" :html="formatImage(email.content)" v-if="email.content" />
-            <pre v-else class="email-text" >{{email.text}}</pre>
+            <ShadowHtml class="shadow-html" :html="formatImage(displayContent)" v-if="displayContent" />
+            <pre v-else class="email-text" >{{displayText}}</pre>
           </el-scrollbar>
           <div class="att" v-if="email.attList?.length > 0">
             <div class="att-title">
@@ -78,7 +100,7 @@ import ShadowHtml from '@/components/shadow-html/index.vue'
 import {computed, reactive, ref, watch, onMounted, onUnmounted} from "vue";
 import {useRouter} from 'vue-router'
 import {ElMessage, ElMessageBox} from 'element-plus'
-import {emailDelete, emailRead} from "@/request/email.js";
+import {emailDelete, emailRead, emailTranslate} from "@/request/email.js";
 import {Icon} from "@iconify/vue";
 import {useEmailStore} from "@/store/email.js";
 import {useAccountStore} from "@/store/account.js";
@@ -107,10 +129,50 @@ const email = computed(() => emailStore.contentData.email || {
 })
 const showPreview = ref(false)
 const srcList = reactive([])
+const translating = ref(false)
+const showTranslated = ref(false)
+const translated = ref(null)
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+
+const displaySubject = computed(() => {
+  if (showTranslated.value && translated.value?.subject) return translated.value.subject
+  return email.value.subject
+})
+
+const displayContent = computed(() => {
+  if (showTranslated.value && translated.value) {
+    return translated.value.content || ''
+  }
+  return email.value.content || ''
+})
+
+const displayText = computed(() => {
+  if (showTranslated.value && translated.value) {
+    return translated.value.text || ''
+  }
+  return email.value.text || ''
+})
+
+const translateBanner = computed(() => {
+  const lang = translated.value?.targetLang
+  const labelMap = {
+    zh: t('translateLangZh'),
+    en: t('translateLangEn'),
+    ja: t('translateLangJa'),
+    ko: t('translateLangKo'),
+  }
+  return `${t('translateSuccess')} · ${labelMap[lang] || lang}`
+})
+
 watch(() => accountStore.currentAccountId, () => {
   handleBack()
+})
+
+watch(() => email.value?.emailId, () => {
+  translated.value = null
+  showTranslated.value = false
+  translating.value = false
 })
 
 let readRequesting = false
@@ -174,6 +236,36 @@ function openReply() {
 
 function openForward() {
   uiStore.writerRef.openForward(email.value)
+}
+
+async function handleTranslate(targetLang) {
+  if (translating.value || !email.value?.emailId) return
+
+  if (translated.value?.targetLang === targetLang) {
+    showTranslated.value = true
+    return
+  }
+
+  translating.value = true
+  try {
+    const data = await emailTranslate({
+      subject: email.value.subject || '',
+      content: email.value.content || '',
+      text: email.value.text || '',
+      targetLang: targetLang || (locale.value === 'en' ? 'en' : 'zh'),
+    })
+    translated.value = data
+    showTranslated.value = true
+    ElMessage({
+      message: t('translateSuccess'),
+      type: 'success',
+      plain: true,
+    })
+  } catch (e) {
+    console.error(e)
+  } finally {
+    translating.value = false
+  }
 }
 
 function toMessage(message) {
@@ -292,6 +384,31 @@ const handleDelete = () => {
     &:hover {
       color: var(--tech-accent);
       filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.4));
+    }
+  }
+
+  .translate-trigger {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    outline: none;
+
+    &.loading {
+      pointer-events: none;
+      opacity: 0.7;
+    }
+  }
+
+  .translate-toggle {
+    margin-left: 2px;
+    font-size: 13px;
+    color: var(--tech-accent, #06B6D4);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+
+    &:hover {
+      text-decoration: underline;
     }
   }
 }

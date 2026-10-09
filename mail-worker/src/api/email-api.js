@@ -1,5 +1,6 @@
 import app from '../hono/hono';
 import emailService from '../service/email-service';
+import aiService from '../service/ai-service';
 import result from '../model/result';
 import userContext from '../security/user-context';
 import attService from '../service/att-service';
@@ -32,5 +33,10 @@ app.post('/email/send', async (c) => {
 app.put('/email/read', async (c) => {
 	await emailService.read(c, await c.req.json(), userContext.getUserId(c));
 	return c.json(result.ok());
+})
+
+app.post('/email/translate', async (c) => {
+	const data = await aiService.translateEmail(c, await c.req.json());
+	return c.json(result.ok(data));
 })
 

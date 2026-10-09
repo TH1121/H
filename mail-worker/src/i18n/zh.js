@@ -22,6 +22,8 @@ const zh = {
 	oauthAlreadyBound: '该授权账号已绑定邮箱',
 	oauthNeedPwd: '该邮箱已注册，请输入密码完成绑定',
 	oauthNotYours: '该授权账号不属于当前用户',
+	aiNotConfigured: 'AI 未配置，无法翻译',
+	translateEmpty: '邮件内容为空，无法翻译',
 	daySendLimit: '发送次数已到达每日限制',
 	totalSendLimit: '发送次数已到达限制',
 	daySendLack: '当日剩余发送次数不足',
