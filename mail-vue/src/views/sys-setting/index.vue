@@ -456,7 +456,7 @@
                 <span>{{ $t('version') }} :</span>
                 <el-badge is-dot :hidden="!hasUpdate">
                   <el-button @click="jump('https://github.com/TH1121/mail-330/releases')">
-                    {{ currentVersion }}
+                    {{ displayVersion }}
                     <template #icon>
                       <Icon icon="qlementine-icons:version-control-16" style="font-size: 20px" color="#1890FF"/>
                     </template>
@@ -963,8 +963,11 @@ defineOptions({
   name: 'sys-setting'
 })
 
-const currentVersion = 'v1.0.2'
+const FALLBACK_VERSION = 'v1.0.2'
+const GITHUB_REPO = 'TH1121/mail-330'
+const latestVersion = ref('')
 const hasUpdate = ref(false)
+const displayVersion = computed(() => latestVersion.value || FALLBACK_VERSION)
 let getUpdateErrorCount = 1;
 const {t, locale} = useI18n();
 const firstLoading = ref(true)
@@ -1205,10 +1208,20 @@ const resendList = computed(() => {
   return list;
 });
 
+function normalizeVersion(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  return raw.startsWith('v') ? raw : `v${raw}`
+}
+
 function getUpdate() {
   if (getUpdateErrorCount > 5 || !getUpdateErrorCount) return
-  axios.get('https://api.github.com/repos/maillab/cloud-mail/releases/latest').then(({data}) => {
-    hasUpdate.value = data.name !== currentVersion
+  axios.get(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`).then(({data}) => {
+    const remote = normalizeVersion(data.tag_name || data.name)
+    if (remote) {
+      latestVersion.value = remote
+      hasUpdate.value = remote !== FALLBACK_VERSION
+    }
     getUpdateErrorCount = 0
   }).catch(e => {
     getUpdateErrorCount++
