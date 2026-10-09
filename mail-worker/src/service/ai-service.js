@@ -1,4 +1,3 @@
-import { parseHTML } from 'linkedom';
 import emailUtils from '../utils/email-utils';
 import { settingConst } from '../const/entity-const';
 import BizError from '../error/biz-error';
@@ -7,7 +6,7 @@ import { t } from '../i18n/i18n';
 const TRANSLATE_MODEL = '@cf/meta/m2m100-1.2b';
 const CHAT_MODEL_DEFAULT = '@cf/meta/llama-3.1-8b-instruct-fast';
 
-// m2m100 对全名更稳（chinese/english），短码时常翻译失败
+// m2m100 对全名更稳（chinese/english）
 const M2M_LANG_NAME = {
 	zh: 'chinese',
 	en: 'english',
@@ -30,11 +29,8 @@ const LANG_LABEL = {
 	ru: 'Russian',
 };
 
-const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'TITLE', 'NOSCRIPT', 'TEXTAREA', 'CODE', 'SVG', 'HEAD']);
-const MAX_TRANSLATE_CHARS = 12000;
-const MAX_SEGMENT_CHARS = 800;
-const BATCH_CHARS = 1200;
-const SEG_SEP = '\n⟦S⟧\n';
+const MAX_TRANSLATE_CHARS = 10000;
+const MAX_CHUNK_CHARS = 700;
 
 const aiService = {
 
@@ -54,176 +50,56 @@ const aiService = {
 			throw new BizError(t('translateEmpty'));
 		}
 
-		const translatedSubject = subject
-			? await this.translateText(c, subject, targetLang, sourceLang)
-			: '';
+		// 正文以纯文本为准（主题已能译出，HTML 节点替换对营销邮件不可靠）
+		const plainBody = (plain || emailUtils.htmlToText(html) || this.stripHtml(html) || '')
+			.replace(/\s+/g, ' ')
+			.trim()
+			.slice(0, MAX_TRANSLATE_CHARS);
 
-		if (html) {
-			const content = await this.translateHtml(c, html, targetLang, sourceLang);
-			return {
-				subject: translatedSubject || subject,
-				text: emailUtils.htmlToText(content),
-				content,
-				targetLang,
-			};
+		const [translatedSubject, translatedText] = await Promise.all([
+			subject ? this.translateText(c, subject, targetLang, sourceLang) : Promise.resolve(''),
+			plainBody ? this.translateText(c, plainBody, targetLang, sourceLang) : Promise.resolve(''),
+		]);
+
+		if (plainBody && !this.looksTranslated(plainBody, translatedText, targetLang)) {
+			throw new BizError(t('translateEmpty'));
 		}
 
-		const body = plain.replace(/\s+/g, ' ').trim().slice(0, MAX_TRANSLATE_CHARS);
-		const translatedText = body ? await this.translateText(c, body, targetLang, sourceLang) : '';
-		const safeText = this.escapeHtml(translatedText || '');
+		const content = translatedText
+			? this.wrapTranslatedHtml(translatedText)
+			: '';
+
 		return {
 			subject: translatedSubject || subject,
-			text: translatedText,
-			content: safeText ? `<div style="white-space:pre-wrap;line-height:1.6;font-family:inherit">${safeText}</div>` : '',
+			text: translatedText || plainBody,
+			content,
 			targetLang,
 		};
+	},
+
+	wrapTranslatedHtml(text) {
+		const safe = this.escapeHtml(text);
+		return `<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;font-family:inherit;font-size:14px;color:#13181D;padding:4px 0">${safe}</div>`;
+	},
+
+	stripHtml(html) {
+		return String(html || '')
+			.replace(/<script[\s\S]*?<\/script>/gi, ' ')
+			.replace(/<style[\s\S]*?<\/style>/gi, ' ')
+			.replace(/<!--[\s\S]*?-->/g, ' ')
+			.replace(/<[^>]+>/g, ' ')
+			.replace(/&nbsp;/gi, ' ')
+			.replace(/&amp;/gi, '&')
+			.replace(/&lt;/gi, '<')
+			.replace(/&gt;/gi, '>')
+			.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+			.replace(/\s+/g, ' ')
+			.trim();
 	},
 
 	normalizeLang(lang) {
 		const code = String(lang || '').toLowerCase().split('-')[0];
 		return M2M_LANG_NAME[code] ? code : 'en';
-	},
-
-	async translateHtml(c, html, targetLang, sourceLang) {
-		const wrapped = /<body[\s>]/i.test(html)
-			? html
-			: `<!DOCTYPE html><html><body>${html}</body></html>`;
-		const { document } = parseHTML(wrapped);
-		if (!document.body) {
-			return html;
-		}
-
-		const textNodes = [];
-		let usedChars = 0;
-		this.collectTextNodes(document.body, textNodes, () => usedChars < MAX_TRANSLATE_CHARS, (len) => {
-			usedChars += len;
-		});
-
-		if (!textNodes.length) {
-			return this.translateHtmlFallback(c, html, targetLang, sourceLang);
-		}
-
-		const originals = textNodes.map(node => node.textContent);
-		const translated = await this.translateSegments(c, originals, targetLang, sourceLang);
-
-		let changed = 0;
-		textNodes.forEach((node, index) => {
-			const next = translated[index];
-			if (typeof next !== 'string' || !next.length) return;
-			const raw = originals[index];
-			const leading = raw.match(/^\s*/)?.[0] || '';
-			const trailing = raw.match(/\s*$/)?.[0] || '';
-			const value = leading + next.trim() + trailing;
-			if (value.trim() !== raw.trim()) changed += 1;
-			node.textContent = value;
-		});
-
-		// 几乎没改动：说明模型未真正翻译，回退整段纯文本翻译
-		if (changed === 0) {
-			return this.translateHtmlFallback(c, html, targetLang, sourceLang);
-		}
-
-		if (!/<body[\s>]/i.test(html)) {
-			return document.body.innerHTML;
-		}
-		return document.body.innerHTML;
-	},
-
-	async translateHtmlFallback(c, html, targetLang, sourceLang) {
-		const plain = emailUtils.htmlToText(html).replace(/\s+/g, ' ').trim().slice(0, MAX_TRANSLATE_CHARS);
-		if (!plain) return html;
-		const translatedText = await this.translateText(c, plain, targetLang, sourceLang);
-		if (!translatedText || translatedText === plain) return html;
-		const safeText = this.escapeHtml(translatedText);
-		return `<div style="white-space:pre-wrap;line-height:1.7;font-family:inherit;font-size:14px;color:#13181D">${safeText}</div>`;
-	},
-
-	collectTextNodes(root, out, canContinue, onAdd) {
-		const walk = (node) => {
-			if (!canContinue()) return;
-			if (node.nodeType === 3) {
-				const raw = node.textContent || '';
-				if (!raw.trim()) return;
-				const len = raw.trim().length;
-				if (!canContinue()) return;
-				out.push(node);
-				onAdd(len);
-				return;
-			}
-			if (node.nodeType !== 1) return;
-			const tag = (node.tagName || '').toUpperCase();
-			if (SKIP_TAGS.has(tag)) return;
-			if (this.isHiddenElement(node)) return;
-			const children = Array.from(node.childNodes || []);
-			for (const child of children) {
-				walk(child);
-				if (!canContinue()) return;
-			}
-		};
-		walk(root);
-	},
-
-	isHiddenElement(node) {
-		const style = `${node.getAttribute?.('style') || ''}`.toLowerCase();
-		if (!style) return false;
-		return /display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0|mso-hide\s*:\s*all|max-height\s*:\s*0|font-size\s*:\s*0|line-height\s*:\s*0/.test(style);
-	},
-
-	async translateSegments(c, segments, targetLang, sourceLang) {
-		const result = new Array(segments.length).fill('');
-		const pending = [];
-
-		segments.forEach((raw, index) => {
-			const text = (raw || '').trim();
-			if (!text || !this.needsTranslate(text, targetLang)) {
-				result[index] = text;
-				return;
-			}
-			pending.push({ index, text });
-		});
-
-		// 按批次拼接，减少 AI 调用次数（营销邮件文本节点很多）
-		let i = 0;
-		while (i < pending.length) {
-			const batch = [];
-			let chars = 0;
-			while (i < pending.length) {
-				const item = pending[i];
-				const len = item.text.length;
-				if (batch.length && chars + len > BATCH_CHARS) break;
-				batch.push(item);
-				chars += len;
-				i += 1;
-				if (chars >= BATCH_CHARS) break;
-			}
-
-			const joined = batch.map(item => item.text).join(SEG_SEP);
-			let translatedJoined = '';
-			try {
-				translatedJoined = await this.translateText(c, joined, targetLang, sourceLang);
-			} catch (e) {
-				console.error('batch translate failed:', e);
-			}
-
-			const parts = translatedJoined ? translatedJoined.split(SEG_SEP) : [];
-			if (parts.length === batch.length) {
-				batch.forEach((item, idx) => {
-					result[item.index] = (parts[idx] || '').trim() || item.text;
-				});
-			} else {
-				// 分隔符被模型吃掉时，逐条翻译
-				for (const item of batch) {
-					try {
-						result[item.index] = await this.translateText(c, item.text, targetLang, sourceLang);
-					} catch (e) {
-						console.error('segment translate failed:', e);
-						result[item.index] = item.text;
-					}
-				}
-			}
-		}
-
-		return result;
 	},
 
 	needsTranslate(text, targetLang) {
@@ -247,15 +123,27 @@ const aiService = {
 		const to = this.normalizeLang(targetLang);
 		if (from === to) return trimmed;
 
-		const chunks = this.splitText(trimmed, MAX_SEGMENT_CHARS);
-		const parts = [];
-		for (const chunk of chunks) {
-			let translated = await this.translateWithM2m(c, chunk, from, to);
-			if (!translated || !this.looksTranslated(chunk, translated, to)) {
-				translated = await this.translateWithChat(c, chunk, to);
+		const chunks = this.splitText(trimmed, MAX_CHUNK_CHARS);
+		const parts = new Array(chunks.length);
+		let cursor = 0;
+		const concurrency = Math.min(3, chunks.length);
+
+		const worker = async () => {
+			while (cursor < chunks.length) {
+				const index = cursor++;
+				const chunk = chunks[index];
+				let translated = await this.translateWithM2m(c, chunk, from, to);
+				if (!this.looksTranslated(chunk, translated, to)) {
+					translated = await this.translateWithChat(c, chunk, to);
+				}
+				if (!this.looksTranslated(chunk, translated, to)) {
+					translated = await this.translateWithChat(c, chunk, to, true);
+				}
+				parts[index] = translated && this.looksTranslated(chunk, translated, to) ? translated : chunk;
 			}
-			parts.push(translated || chunk);
-		}
+		};
+
+		await Promise.all(Array.from({ length: concurrency }, () => worker()));
 		return parts.join('').trim() || trimmed;
 	},
 
@@ -268,25 +156,22 @@ const aiService = {
 			});
 			return this.pickTranslatedText(result);
 		} catch (e) {
-			console.error('m2m translate failed:', e);
+			console.error('m2m translate failed:', e?.message || e);
 			return '';
 		}
 	},
 
-	async translateWithChat(c, text, targetLang) {
+	async translateWithChat(c, text, targetLang, strict = false) {
 		try {
 			const langName = LANG_LABEL[targetLang] || LANG_LABEL.zh;
 			const model = c.env.ai_model || CHAT_MODEL_DEFAULT;
+			const system = strict
+				? `Translate EVERY sentence into ${langName}. The output MUST be in ${langName}. Do not keep English sentences. Keep URLs and email addresses unchanged. Output only the translation.`
+				: `You are a professional email translator. Translate the user message into ${langName}. Output ONLY the translation. Keep URLs, emails, and product/package names unchanged.`;
 			const result = await c.env.ai.run(model, {
 				messages: [
-					{
-						role: 'system',
-						content: `You are a professional email translator. Translate the user message into ${langName}. Output ONLY the translation. Keep URLs, emails, and product/package names unchanged. Do not add notes.`
-					},
-					{
-						role: 'user',
-						content: text
-					}
+					{ role: 'system', content: system },
+					{ role: 'user', content: text }
 				],
 				temperature: 0.1,
 				max_tokens: 2048
@@ -294,26 +179,20 @@ const aiService = {
 			const content = typeof result === 'string' ? result : (result?.response || '');
 			return String(content || '').trim();
 		} catch (e) {
-			console.error('chat translate failed:', e);
+			console.error('chat translate failed:', e?.message || e);
 			return '';
 		}
 	},
 
 	looksTranslated(original, translated, targetLang) {
 		if (!translated) return false;
-		const src = original.trim();
-		const dst = translated.trim();
+		const src = String(original || '').trim();
+		const dst = String(translated || '').trim();
 		if (!dst) return false;
 		if (dst === src) return false;
-		if (targetLang === 'zh') {
-			return /[\u4E00-\u9FFF]/.test(dst);
-		}
-		if (targetLang === 'ja') {
-			return /[\u3040-\u30FF\u4E00-\u9FFF]/.test(dst);
-		}
-		if (targetLang === 'ko') {
-			return /[\uAC00-\uD7AF]/.test(dst);
-		}
+		if (targetLang === 'zh') return /[\u4E00-\u9FFF]/.test(dst);
+		if (targetLang === 'ja') return /[\u3040-\u30FF\u4E00-\u9FFF]/.test(dst);
+		if (targetLang === 'ko') return /[\uAC00-\uD7AF]/.test(dst);
 		return /[A-Za-z]/.test(dst);
 	},
 
@@ -334,13 +213,14 @@ const aiService = {
 		const chunks = [];
 		let rest = text;
 		while (rest.length > maxLen) {
-			let cut = rest.lastIndexOf(' ', maxLen);
-			if (cut < maxLen * 0.5) cut = maxLen;
-			chunks.push(rest.slice(0, cut));
-			rest = rest.slice(cut).trimStart();
+			let cut = rest.lastIndexOf('. ', maxLen);
+			if (cut < maxLen * 0.4) cut = rest.lastIndexOf(' ', maxLen);
+			if (cut < maxLen * 0.4) cut = maxLen;
+			chunks.push(rest.slice(0, cut + (rest[cut] === '.' ? 1 : 0)).trim());
+			rest = rest.slice(cut + (rest[cut] === '.' ? 1 : 0)).trimStart();
 		}
 		if (rest) chunks.push(rest);
-		return chunks;
+		return chunks.filter(Boolean);
 	},
 
 	escapeHtml(str) {

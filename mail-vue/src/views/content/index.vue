@@ -136,7 +136,13 @@ const displaySubject = computed(() => {
 
 const displayContent = computed(() => {
   if (showTranslated.value && translated.value) {
-    return translated.value.content || ''
+    const html = translated.value.content || ''
+    if (html) return html
+    const text = translated.value.text || ''
+    if (text) {
+      return `<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7">${escapeHtml(text)}</div>`
+    }
+    return ''
   }
   return email.value.content || ''
 })
@@ -147,6 +153,14 @@ const displayText = computed(() => {
   }
   return email.value.text || ''
 })
+
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
 
 const langName = (code) => {
   const map = {
@@ -296,10 +310,18 @@ async function handleTranslate(lang) {
       targetLang: lang || targetLang.value,
       sourceLang: sourceLang.value || 'en',
     })
+    if (!data?.content && !data?.text && !data?.subject) {
+      throw new Error('empty translation')
+    }
     translated.value = data
     showTranslated.value = true
   } catch (e) {
     console.error(e)
+    ElMessage({
+      message: t('reqFailErrorMsg'),
+      type: 'error',
+      plain: true,
+    })
   } finally {
     translating.value = false
   }
