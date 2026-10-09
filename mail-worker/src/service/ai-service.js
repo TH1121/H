@@ -368,9 +368,11 @@ const aiService = {
 		if (this.isGarbageTranslation(src, dst)) return false;
 		if (targetLang === 'zh') {
 			const han = (dst.match(/[\u4E00-\u9FFF]/g) || []).length;
+			if (han < 2) return false;
+			// 短句只要出现中文即可；长句允许保留品牌英文
+			if (src.length <= 48) return true;
 			const latin = (dst.match(/[A-Za-z]/g) || []).length;
-			// 允许保留品牌名，但中文要明显占优或至少有一定数量
-			return han >= 4 && han >= latin * 0.35;
+			return han >= Math.max(4, latin * 0.25);
 		}
 		if (targetLang === 'ja') return /[\u3040-\u30FF\u4E00-\u9FFF]/.test(dst);
 		if (targetLang === 'ko') return /[\uAC00-\uD7AF]/.test(dst);
