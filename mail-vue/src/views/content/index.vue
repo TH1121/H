@@ -378,12 +378,18 @@ async function handleTranslate(lang) {
       text = data?.text || ''
     }
 
-    if (!hasTargetLangText(content, target) && !hasTargetLangText(subjectData?.subject || '', target)) {
-      throw new Error('empty translation')
+    const subjectOk = hasTargetLangText(subjectData?.subject || '', target)
+    const bodyOk = !originalHtml && !email.value.text
+      ? true
+      : hasTargetLangText(content || text, target)
+
+    // 正文没真正译成目标语言时不能标记成功（避免样式在、英文还在却显示“已翻译”）
+    if (!bodyOk) {
+      throw new Error('body translate failed')
     }
 
     translated.value = {
-      subject: subjectData?.subject || email.value.subject,
+      subject: subjectOk ? (subjectData?.subject || email.value.subject) : (email.value.subject || ''),
       content,
       text,
       targetLang: target,

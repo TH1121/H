@@ -119,7 +119,8 @@ function collectTexts() {
     Array.from(node.childNodes || []).forEach(walk)
   }
   walk(root)
-  return pendingNodes.map((node) => node.textContent || '')
+  // 提交去空白后的文本，保留节点引用以便写回时恢复首尾空白
+  return pendingNodes.map((node) => (node.textContent || '').trim())
 }
 
 function applyTexts(list) {

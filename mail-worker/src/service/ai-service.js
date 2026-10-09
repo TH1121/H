@@ -59,9 +59,14 @@ const aiService = {
 			}
 		}
 
-		await this.runPool(unique, TRANSLATE_CONCURRENCY, async (text) => {
+		await this.runPool(unique, Math.min(4, TRANSLATE_CONCURRENCY + 1), async (text) => {
 			const trimmed = String(text || '').trim();
-			if (!trimmed || !this.needsTranslate(trimmed, targetLang) || this.isUrlLike(trimmed)) {
+			if (!trimmed || this.isUrlLike(trimmed)) {
+				cache.set(text, text);
+				return;
+			}
+			if (!/[A-Za-z\u00C0-\u024F\u0400-\u04FF]/.test(trimmed)) {
+				// 已无西文，通常无需再译
 				cache.set(text, text);
 				return;
 			}
@@ -188,10 +193,9 @@ const aiService = {
 		const src = String(original || '').trim();
 		const dst = String(translated || '').trim();
 		if (!dst || dst === src) return false;
-		// 节点级只拦明显垃圾/严重扩写，避免误杀导致整封降级丢样式
-		if (/(.{2,10})\1{8,}/u.test(dst.replace(/\s+/g, ''))) return false;
-		if ((dst.match(/您?好[!！]?/g) || []).length >= 5) return false;
-		if (dst.length > src.length * 3 + 40) return false;
+		if (/(.{2,8})\1{10,}/u.test(dst.replace(/\s+/g, ''))) return false;
+		if ((dst.match(/您?好[!！]?/g) || []).length >= 6) return false;
+		if (dst.length > src.length * 3.5 + 48) return false;
 		if (targetLang === 'zh') return /[\u4E00-\u9FFF]/.test(dst);
 		if (targetLang === 'ja') return /[\u3040-\u30FF\u4E00-\u9FFF]/.test(dst);
 		if (targetLang === 'ko') return /[\uAC00-\uD7AF]/.test(dst);
