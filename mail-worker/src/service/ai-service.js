@@ -6,7 +6,6 @@ import { t } from '../i18n/i18n';
 const TRANSLATE_MODEL = '@cf/meta/m2m100-1.2b';
 const CHAT_MODEL_DEFAULT = '@cf/meta/llama-3.1-8b-instruct-fast';
 
-// m2m100 对全名更稳（chinese/english）
 const M2M_LANG_NAME = {
 	zh: 'chinese',
 	en: 'english',
@@ -29,8 +28,8 @@ const LANG_LABEL = {
 	ru: 'Russian',
 };
 
-const MAX_TRANSLATE_CHARS = 10000;
-const MAX_CHUNK_CHARS = 700;
+const MAX_TRANSLATE_CHARS = 4500;
+const MAX_CHUNK_CHARS = 500;
 
 const aiService = {
 
@@ -50,18 +49,16 @@ const aiService = {
 			throw new BizError(t('translateEmpty'));
 		}
 
-		// 正文以纯文本为准（主题已能译出，HTML 节点替换对营销邮件不可靠）
-		const plainBody = (plain || emailUtils.htmlToText(html) || this.stripHtml(html) || '')
-			.replace(/\s+/g, ' ')
-			.trim()
-			.slice(0, MAX_TRANSLATE_CHARS);
+		// 先抽正文再强清洗：去掉追踪链接，避免模型对着 URL 胡翻（出现一堆「您好！」）
+		const rawBody = plain || emailUtils.htmlToText(html) || this.stripHtml(html) || '';
+		const plainBody = this.cleanForTranslate(rawBody).slice(0, MAX_TRANSLATE_CHARS);
 
 		const [translatedSubject, translatedText] = await Promise.all([
-			subject ? this.translateText(c, subject, targetLang, sourceLang) : Promise.resolve(''),
+			subject ? this.translateText(c, this.cleanForTranslate(subject), targetLang, sourceLang) : Promise.resolve(''),
 			plainBody ? this.translateText(c, plainBody, targetLang, sourceLang) : Promise.resolve(''),
 		]);
 
-		if (plainBody && !this.looksTranslated(plainBody, translatedText, targetLang)) {
+		if (plainBody && (this.isGarbageTranslation(plainBody, translatedText) || !this.looksTranslated(plainBody, translatedText, targetLang))) {
 			throw new BizError(t('translateEmpty'));
 		}
 
@@ -77,6 +74,19 @@ const aiService = {
 		};
 	},
 
+	cleanForTranslate(text) {
+		return String(text || '')
+			.replace(/https?:\/\/\S+/gi, ' ')
+			.replace(/www\.\S+/gi, ' ')
+			.replace(/[\w.+-]+@[\w.-]+\.\w+/g, ' ')
+			.replace(/\b(?:c\.gle|goo\.gl|bit\.ly|t\.co)\/\S+/gi, ' ')
+			.replace(/[A-Za-z0-9_-]{28,}/g, ' ')
+			.replace(/[|｜•·]{2,}/g, ' ')
+			.replace(/[-=_]{4,}/g, ' ')
+			.replace(/\s+/g, ' ')
+			.trim();
+	},
+
 	wrapTranslatedHtml(text) {
 		const safe = this.escapeHtml(text);
 		return `<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;font-family:inherit;font-size:14px;color:#13181D;padding:4px 0">${safe}</div>`;
@@ -87,6 +97,7 @@ const aiService = {
 			.replace(/<script[\s\S]*?<\/script>/gi, ' ')
 			.replace(/<style[\s\S]*?<\/style>/gi, ' ')
 			.replace(/<!--[\s\S]*?-->/g, ' ')
+			.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi, ' ')
 			.replace(/<[^>]+>/g, ' ')
 			.replace(/&nbsp;/gi, ' ')
 			.replace(/&amp;/gi, '&')
@@ -103,19 +114,19 @@ const aiService = {
 	},
 
 	needsTranslate(text, targetLang) {
-		if (!/[A-Za-z\u00C0-\u024F\u0400-\u04FF\u3040-\u30FF\uAC00-\uD7AF\u4E00-\u9FFF]/.test(text)) {
+		const cleaned = this.cleanForTranslate(text);
+		if (cleaned.length < 2) return false;
+		if (!/[A-Za-z\u00C0-\u024F\u0400-\u04FF\u3040-\u30FF\uAC00-\uD7AF\u4E00-\u9FFF]/.test(cleaned)) {
 			return false;
 		}
-		if (/^https?:\/\/\S+$/i.test(text)) return false;
-		if (/^[\w.+-]+@[\w.-]+$/.test(text)) return false;
-		if (targetLang === 'zh' && /[\u4E00-\u9FFF]/.test(text) && !/[A-Za-z]{4,}/.test(text)) {
+		if (targetLang === 'zh' && /[\u4E00-\u9FFF]/.test(cleaned) && !/[A-Za-z]{4,}/.test(cleaned)) {
 			return false;
 		}
 		return true;
 	},
 
 	async translateText(c, text, targetLang, sourceLang = 'en') {
-		const trimmed = String(text || '').trim();
+		const trimmed = this.cleanForTranslate(text);
 		if (!trimmed) return '';
 		if (!this.needsTranslate(trimmed, targetLang)) return trimmed;
 
@@ -126,25 +137,70 @@ const aiService = {
 		const chunks = this.splitText(trimmed, MAX_CHUNK_CHARS);
 		const parts = new Array(chunks.length);
 		let cursor = 0;
-		const concurrency = Math.min(3, chunks.length);
+		const concurrency = Math.min(2, chunks.length);
 
 		const worker = async () => {
 			while (cursor < chunks.length) {
 				const index = cursor++;
-				const chunk = chunks[index];
-				let translated = await this.translateWithM2m(c, chunk, from, to);
-				if (!this.looksTranslated(chunk, translated, to)) {
-					translated = await this.translateWithChat(c, chunk, to);
-				}
-				if (!this.looksTranslated(chunk, translated, to)) {
-					translated = await this.translateWithChat(c, chunk, to, true);
-				}
-				parts[index] = translated && this.looksTranslated(chunk, translated, to) ? translated : chunk;
+				parts[index] = await this.translateOneChunk(c, chunks[index], from, to);
 			}
 		};
 
 		await Promise.all(Array.from({ length: concurrency }, () => worker()));
-		return parts.join('').trim() || trimmed;
+		return parts.filter(Boolean).join('\n\n').trim() || trimmed;
+	},
+
+	async translateOneChunk(c, chunk, from, to) {
+		const clean = this.cleanForTranslate(chunk);
+		if (!clean) return '';
+
+		// 优先用 chat：对邮件段落更稳；m2m 遇到噪声容易重复「您好」
+		let translated = await this.translateWithChat(c, clean, to);
+		if (this.isGarbageTranslation(clean, translated) || !this.looksTranslated(clean, translated, to)) {
+			translated = await this.translateWithM2m(c, clean, from, to);
+		}
+		if (this.isGarbageTranslation(clean, translated) || !this.looksTranslated(clean, translated, to)) {
+			translated = await this.translateWithChat(c, clean, to, true);
+		}
+		if (this.isGarbageTranslation(clean, translated) || !this.looksTranslated(clean, translated, to)) {
+			return clean;
+		}
+		return this.cleanTranslatedOutput(translated);
+	},
+
+	cleanTranslatedOutput(text) {
+		return String(text || '')
+			.replace(/https?:\/\/\S+/gi, ' ')
+			.replace(/(您好[!！]?\s*){3,}/g, '您好！')
+			.replace(/(你好[!！]?\s*){3,}/g, '你好！')
+			.replace(/\s+/g, ' ')
+			.trim();
+	},
+
+	isGarbageTranslation(original, translated) {
+		if (!translated) return true;
+		const src = String(original || '').trim();
+		const dst = String(translated || '').trim();
+		if (!dst) return true;
+
+		const compact = dst.replace(/\s+/g, '');
+		if (/(.{2,10})\1{6,}/u.test(compact)) return true;
+
+		const helloZh = (dst.match(/您?好[!！]?/g) || []).length;
+		if (helloZh >= 4) return true;
+
+		if (dst.length > Math.max(120, src.length * 2.5)) return true;
+
+		const letters = compact.replace(/[^\p{L}]/gu, '');
+		if (letters.length > 60) {
+			const unique = new Set(letters).size;
+			if (unique < 10) return true;
+		}
+
+		const urlCount = (dst.match(/https?:\/\//gi) || []).length;
+		if (urlCount >= 3) return true;
+
+		return false;
 	},
 
 	async translateWithM2m(c, text, sourceLang, targetLang) {
@@ -166,15 +222,15 @@ const aiService = {
 			const langName = LANG_LABEL[targetLang] || LANG_LABEL.zh;
 			const model = c.env.ai_model || CHAT_MODEL_DEFAULT;
 			const system = strict
-				? `Translate EVERY sentence into ${langName}. The output MUST be in ${langName}. Do not keep English sentences. Keep URLs and email addresses unchanged. Output only the translation.`
-				: `You are a professional email translator. Translate the user message into ${langName}. Output ONLY the translation. Keep URLs, emails, and product/package names unchanged.`;
+				? `Translate the email excerpt into ${langName}. Output fluent ${langName} only. Never repeat the same word or greeting. Do not invent content. Do not output URLs.`
+				: `You are a professional email translator. Translate into ${langName}. Keep meaning and tone. Output only the translation. Do not repeat phrases. Do not output URLs.`;
 			const result = await c.env.ai.run(model, {
 				messages: [
 					{ role: 'system', content: system },
 					{ role: 'user', content: text }
 				],
 				temperature: 0.1,
-				max_tokens: 2048
+				max_tokens: 1024
 			});
 			const content = typeof result === 'string' ? result : (result?.response || '');
 			return String(content || '').trim();
@@ -188,8 +244,8 @@ const aiService = {
 		if (!translated) return false;
 		const src = String(original || '').trim();
 		const dst = String(translated || '').trim();
-		if (!dst) return false;
-		if (dst === src) return false;
+		if (!dst || dst === src) return false;
+		if (this.isGarbageTranslation(src, dst)) return false;
 		if (targetLang === 'zh') return /[\u4E00-\u9FFF]/.test(dst);
 		if (targetLang === 'ja') return /[\u3040-\u30FF\u4E00-\u9FFF]/.test(dst);
 		if (targetLang === 'ko') return /[\uAC00-\uD7AF]/.test(dst);
@@ -214,10 +270,16 @@ const aiService = {
 		let rest = text;
 		while (rest.length > maxLen) {
 			let cut = rest.lastIndexOf('. ', maxLen);
-			if (cut < maxLen * 0.4) cut = rest.lastIndexOf(' ', maxLen);
-			if (cut < maxLen * 0.4) cut = maxLen;
-			chunks.push(rest.slice(0, cut + (rest[cut] === '.' ? 1 : 0)).trim());
-			rest = rest.slice(cut + (rest[cut] === '.' ? 1 : 0)).trimStart();
+			if (cut < maxLen * 0.35) cut = rest.lastIndexOf('。', maxLen);
+			if (cut < maxLen * 0.35) cut = rest.lastIndexOf('! ', maxLen);
+			if (cut < maxLen * 0.35) cut = rest.lastIndexOf('? ', maxLen);
+			if (cut < maxLen * 0.35) cut = rest.lastIndexOf(' ', maxLen);
+			if (cut < maxLen * 0.35) cut = maxLen;
+			const end = rest[cut] === '.' || rest[cut] === '。' || rest[cut] === '!' || rest[cut] === '?'
+				? cut + 1
+				: cut;
+			chunks.push(rest.slice(0, end).trim());
+			rest = rest.slice(end).trimStart();
 		}
 		if (rest) chunks.push(rest);
 		return chunks.filter(Boolean);
