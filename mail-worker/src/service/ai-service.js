@@ -88,7 +88,8 @@ const aiService = {
 			: `<!DOCTYPE html><html><body>${html}</body></html>`;
 		const { document } = parseHTML(wrapped);
 		if (!document?.body) {
-			return this.translatePlainFallback(c, html, targetLang, sourceLang);
+			// 解析失败也绝不打成纯文本，直接返回原 HTML 保样式
+			return html;
 		}
 
 		const textNodes = [];
@@ -103,56 +104,72 @@ const aiService = {
 			const trimmed = raw.trim();
 			if (!trimmed || !this.needsTranslate(trimmed, targetLang)) return;
 			if (this.isUrlLike(trimmed)) return;
-			const text = this.cleanForTranslate(trimmed);
-			if (!text) return;
+			// 节点翻译尽量保留原文用词，只去掉纯链接噪声
+			const text = trimmed.replace(/https?:\/\/\S+/gi, ' ').replace(/\s+/g, ' ').trim();
+			if (!text || this.isUrlLike(text)) return;
 			jobs.push({ index, node, raw, text });
 		});
 
-		// 先翻长段落，保证标题/正文优先保留在 HTML 结构里
 		jobs.sort((a, b) => b.text.length - a.text.length);
 
 		if (!jobs.length) {
-			return this.translatePlainFallback(c, html, targetLang, sourceLang);
+			return this.serializeTranslatedHtml(document, html);
 		}
 
-		let changed = 0;
 		await this.runPool(jobs, TRANSLATE_CONCURRENCY, async (job) => {
-			const translated = await this.translateOneChunk(c, job.text, sourceLang, targetLang);
-			if (!translated || !this.isAcceptableTranslation(job.text, translated, targetLang)) {
-				return;
-			}
+			const translated = await this.translateHtmlChunk(c, job.text, sourceLang, targetLang);
+			if (!translated) return;
 			const leading = job.raw.match(/^\s*/)?.[0] || '';
 			const trailing = job.raw.match(/\s*$/)?.[0] || '';
 			job.node.textContent = leading + translated.trim() + trailing;
-			changed += 1;
 		});
 
-		// 只要有节点翻成功，就返回原 HTML 结构（像浏览器翻译一样保留版式）
-		// 不再因为“中文比例不够”整封打成纯文本
-		if (changed > 0) {
-			return this.serializeTranslatedHtml(document);
-		}
-		return this.translatePlainFallback(c, html, targetLang, sourceLang);
+		// HTML 邮件始终返回结构化 HTML，绝不降级为纯文本（否则会像图2一样丢掉版式）
+		return this.serializeTranslatedHtml(document, html);
 	},
 
-	serializeTranslatedHtml(document) {
-		// 把 <head> 里的 style 一并带回，避免只返回 body 时丢样式
+	async translateHtmlChunk(c, text, sourceLang, targetLang) {
+		const from = this.normalizeLang(sourceLang);
+		const to = this.normalizeLang(targetLang);
+		const clean = String(text || '').trim();
+		if (!clean) return '';
+
+		let translated = await this.translateWithM2m(c, clean, from, to);
+		if (!this.isHtmlNodeAcceptable(clean, translated, to)) {
+			translated = await this.translateWithChat(c, clean, to);
+		}
+		if (!this.isHtmlNodeAcceptable(clean, translated, to)) {
+			return '';
+		}
+		return this.cleanTranslatedOutput(translated);
+	},
+
+	isHtmlNodeAcceptable(original, translated, targetLang) {
+		if (!translated) return false;
+		const src = String(original || '').trim();
+		const dst = String(translated || '').trim();
+		if (!dst || dst === src) return false;
+		// 节点级只拦明显垃圾/严重扩写，避免误杀导致整封降级丢样式
+		if (/(.{2,10})\1{8,}/u.test(dst.replace(/\s+/g, ''))) return false;
+		if ((dst.match(/您?好[!！]?/g) || []).length >= 5) return false;
+		if (dst.length > src.length * 3 + 40) return false;
+		if (targetLang === 'zh') return /[\u4E00-\u9FFF]/.test(dst);
+		if (targetLang === 'ja') return /[\u3040-\u30FF\u4E00-\u9FFF]/.test(dst);
+		if (targetLang === 'ko') return /[\uAC00-\uD7AF]/.test(dst);
+		return /[A-Za-z]/.test(dst);
+	},
+
+	serializeTranslatedHtml(document, originalHtml = '') {
 		const headStyles = Array.from(document.head?.querySelectorAll?.('style') || [])
 			.map((el) => el.outerHTML)
 			.join('');
-		return `${headStyles}${document.body.innerHTML}`;
-	},
-
-	async translatePlainFallback(c, html, targetLang, sourceLang, preparedPlain = '') {
-		const plainBody = (preparedPlain || this.cleanForTranslate(
-			emailUtils.htmlToText(html) || this.stripHtml(html) || ''
-		)).slice(0, MAX_TRANSLATE_CHARS);
-		if (!plainBody) return html;
-		const translatedText = await this.translateText(c, plainBody, targetLang, sourceLang);
-		if (!this.isAcceptableTranslation(plainBody, translatedText, targetLang)) {
-			throw new BizError(t('translateEmpty'));
-		}
-		return this.wrapTranslatedHtml(translatedText);
+		const bodyHtml = document.body?.innerHTML || '';
+		const bodyStyle = document.body?.getAttribute?.('style') || '';
+		const styledBody = bodyStyle
+			? `<div style="${bodyStyle.replace(/"/g, '&quot;')}">${bodyHtml}</div>`
+			: bodyHtml;
+		const result = `${headStyles}${styledBody}`;
+		return result || originalHtml;
 	},
 
 	collectTextNodes(root, out, canContinue, onAdd) {
