@@ -33,3 +33,19 @@ app.put('/setting/setBlacklist', async (c) => {
 	return c.json(result.ok(setting));
 })
 
+app.get('/setting/latestVersion', async (c) => {
+	const repo = c.env.github_repo || 'TH1121/mail-330';
+	const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
+		headers: {
+			'User-Agent': 'cloud-mail',
+			Accept: 'application/vnd.github+json',
+		},
+	});
+	if (!res.ok) {
+		return c.json(result.fail(`github release http ${res.status}`, res.status));
+	}
+	const data = await res.json();
+	const version = String(data.tag_name || data.name || '').trim();
+	return c.json(result.ok({ version }));
+})
+

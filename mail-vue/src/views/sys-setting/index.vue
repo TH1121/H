@@ -942,8 +942,8 @@ Authorization: &lt;secret&gt;</pre>
 </template>
 
 <script setup>
-import {computed, defineOptions, nextTick, reactive, ref} from "vue";
-import {deleteBackground, setBackground, setBlackList, settingQuery, settingSet} from "@/request/setting.js";
+import {computed, defineOptions, nextTick, onActivated, reactive, ref} from "vue";
+import {deleteBackground, latestVersion as fetchLatestVersion, setBackground, setBlackList, settingQuery, settingSet} from "@/request/setting.js";
 import {useSettingStore} from "@/store/setting.js";
 import {useUiStore} from "@/store/ui.js";
 import {useUserStore} from "@/store/user.js";
@@ -957,14 +957,12 @@ import loading from "@/components/loading/index.vue";
 import {getTextWidth} from "@/utils/text.js";
 import {fileToBase64} from "@/utils/file-utils.js"
 import {useI18n} from 'vue-i18n';
-import axios from "axios";
 
 defineOptions({
   name: 'sys-setting'
 })
 
-const FALLBACK_VERSION = 'v1.0.2'
-const GITHUB_REPO = 'TH1121/mail-330'
+const FALLBACK_VERSION = 'v1.0.3'
 const latestVersion = ref('')
 const hasUpdate = ref(false)
 const displayVersion = computed(() => latestVersion.value || FALLBACK_VERSION)
@@ -1137,6 +1135,11 @@ const tgMsgLabelWidth = computed(() => locale.value === 'en' ? '120px' : '100px'
 getSettings()
 getUpdate()
 
+onActivated(() => {
+  getUpdateErrorCount = 1
+  getUpdate()
+})
+
 function getSettings() {
   settingReady.value = false
   settingQuery().then(settingData => {
@@ -1216,8 +1219,9 @@ function normalizeVersion(value) {
 
 function getUpdate() {
   if (getUpdateErrorCount > 5 || !getUpdateErrorCount) return
-  axios.get(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`).then(({data}) => {
-    const remote = normalizeVersion(data.tag_name || data.name)
+  // 经后端代理拉取，避免浏览器直连 GitHub API 失败/限流
+  fetchLatestVersion().then((data) => {
+    const remote = normalizeVersion(data?.version)
     if (remote) {
       latestVersion.value = remote
       hasUpdate.value = remote !== FALLBACK_VERSION
