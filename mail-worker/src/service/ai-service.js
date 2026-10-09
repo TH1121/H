@@ -36,6 +36,45 @@ const TRANSLATE_CONCURRENCY = 3;
 
 const aiService = {
 
+	async translateTexts(c, params) {
+		const ai = c.env.ai;
+		if (!ai) {
+			throw new BizError(t('aiNotConfigured'));
+		}
+
+		const targetLang = this.normalizeLang(params.targetLang || 'zh');
+		const sourceLang = this.normalizeLang(params.sourceLang || 'en');
+		const texts = Array.isArray(params.texts) ? params.texts.slice(0, 120) : [];
+		if (!texts.length) {
+			return { list: [] };
+		}
+
+		const cache = new Map();
+		const unique = [];
+		for (const item of texts) {
+			const key = String(item ?? '');
+			if (!cache.has(key)) {
+				cache.set(key, null);
+				unique.push(key);
+			}
+		}
+
+		await this.runPool(unique, TRANSLATE_CONCURRENCY, async (text) => {
+			const trimmed = String(text || '').trim();
+			if (!trimmed || !this.needsTranslate(trimmed, targetLang) || this.isUrlLike(trimmed)) {
+				cache.set(text, text);
+				return;
+			}
+			const translated = await this.translateHtmlChunk(c, trimmed, sourceLang, targetLang);
+			cache.set(text, translated || text);
+		});
+
+		return {
+			list: texts.map((text) => cache.get(String(text ?? '')) ?? text),
+			targetLang,
+		};
+	},
+
 	async translateEmail(c, params) {
 		const ai = c.env.ai;
 		if (!ai) {

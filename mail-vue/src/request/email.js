@@ -22,6 +22,12 @@ export function emailTranslate({ subject, content, text, targetLang, sourceLang 
     return http.post('/email/translate', { subject, content, text, targetLang, sourceLang })
 }
 
+export function emailTranslateTexts({ texts, targetLang, sourceLang }) {
+    return http.post('/email/translate-texts', { texts, targetLang, sourceLang }, {
+        timeout: 120 * 1000
+    })
+}
+
 export function emailSend(form,progress) {
     return http.post('/email/send', form,{
         onUploadProgress: (e) => {

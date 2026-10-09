@@ -17,6 +17,7 @@ const props = defineProps({
 const container = ref(null)
 const contentBox = ref(null)
 let shadowRoot = null
+let pendingNodes = []
 
 function updateContent() {
   if (!shadowRoot) return
@@ -34,12 +35,12 @@ function updateContent() {
     .replace(/<\/?(?:html|head|body)[^>]*>/gi, '')
     .replace(/<!DOCTYPE[^>]*>/gi, '')
 
-  // 用 DOM API 挂载，避免模板字符串把邮件 HTML/CSS 解析坏导致空白
   while (shadowRoot.firstChild) {
     shadowRoot.removeChild(shadowRoot.firstChild)
   }
 
   const baseStyle = document.createElement('style')
+  baseStyle.setAttribute('data-base', '1')
   baseStyle.textContent = `
     :host {
       display: block;
@@ -73,7 +74,7 @@ function updateContent() {
   wrap.innerHTML = cleanedHtml
   shadowRoot.appendChild(wrap)
 
-  // 重置缩放，避免上次 zoom 把内容缩成“看不见”
+  pendingNodes = []
   if (shadowRoot.host) {
     shadowRoot.host.style.zoom = '1'
   }
@@ -92,12 +93,72 @@ function autoScale() {
   const childWidth = shadowContent.scrollWidth
   if (!parentWidth || !childWidth) return
 
-  // 仅轻度缩小过宽邮件，避免缩到接近 0 变成空白
   if (childWidth > parentWidth * 1.15) {
     const scale = Math.max(0.55, parentWidth / childWidth)
     hostElement.style.zoom = String(scale)
   }
 }
+
+function collectTexts() {
+  pendingNodes = []
+  const root = shadowRoot?.querySelector('.shadow-content')
+  if (!root) return []
+
+  const walk = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if ((node.textContent || '').trim()) {
+        pendingNodes.push(node)
+      }
+      return
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return
+    const tag = (node.tagName || '').toUpperCase()
+    if (['STYLE', 'SCRIPT', 'NOSCRIPT', 'TEXTAREA', 'CODE'].includes(tag)) return
+    const style = `${node.getAttribute?.('style') || ''}`.toLowerCase()
+    if (/display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0|font-size\s*:\s*0/.test(style)) return
+    Array.from(node.childNodes || []).forEach(walk)
+  }
+  walk(root)
+  return pendingNodes.map((node) => node.textContent || '')
+}
+
+function applyTexts(list) {
+  let changed = 0
+  const translations = Array.isArray(list) ? list : []
+  pendingNodes.forEach((node, index) => {
+    const next = translations[index]
+    if (typeof next !== 'string') return
+    const raw = node.textContent || ''
+    const trimmedNext = next.trim()
+    if (!trimmedNext || trimmedNext === raw.trim()) return
+    const leading = raw.match(/^\s*/)?.[0] || ''
+    const trailing = raw.match(/\s*$/)?.[0] || ''
+    node.textContent = leading + trimmedNext + trailing
+    changed += 1
+  })
+  return changed
+}
+
+function exportHtml() {
+  if (!shadowRoot) return ''
+  const styles = Array.from(shadowRoot.querySelectorAll('style'))
+    .filter((el) => el.getAttribute('data-base') !== '1')
+    .map((el) => `<style>${el.textContent || ''}</style>`)
+    .join('')
+  const content = shadowRoot.querySelector('.shadow-content')?.innerHTML || ''
+  return `${styles}${content}`
+}
+
+function getPlainText() {
+  return shadowRoot?.querySelector('.shadow-content')?.innerText || ''
+}
+
+defineExpose({
+  collectTexts,
+  applyTexts,
+  exportHtml,
+  getPlainText,
+})
 
 onMounted(async () => {
   shadowRoot = container.value.attachShadow({ mode: 'open' })

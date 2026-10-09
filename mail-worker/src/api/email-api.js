@@ -40,3 +40,8 @@ app.post('/email/translate', async (c) => {
 	return c.json(result.ok(data));
 })
 
+app.post('/email/translate-texts', async (c) => {
+	const data = await aiService.translateTexts(c, await c.req.json());
+	return c.json(result.ok(data));
+})
+

@@ -47,7 +47,7 @@
             </button>
           </div>
           <el-scrollbar class="htm-scrollbar" :class="!email.attList?.length ? 'bottom-distance' : ''">
-            <ShadowHtml class="shadow-html" :html="formatImage(displayContent)" v-if="displayContent" />
+            <ShadowHtml ref="shadowHtmlRef" class="shadow-html" :html="formatImage(displayContent)" v-if="displayContent" />
             <pre v-else class="email-text" >{{displayText}}</pre>
           </el-scrollbar>
           <div class="att" v-if="email.attList?.length > 0">
@@ -87,10 +87,10 @@
 </template>
 <script setup>
 import ShadowHtml from '@/components/shadow-html/index.vue'
-import {computed, reactive, ref, watch, onMounted, onUnmounted} from "vue";
+import {computed, reactive, ref, watch, onMounted, onUnmounted, nextTick} from "vue";
 import {useRouter} from 'vue-router'
 import {ElMessage, ElMessageBox} from 'element-plus'
-import {emailDelete, emailRead, emailTranslate} from "@/request/email.js";
+import {emailDelete, emailRead, emailTranslate, emailTranslateTexts} from "@/request/email.js";
 import {Icon} from "@iconify/vue";
 import {useEmailStore} from "@/store/email.js";
 import {useAccountStore} from "@/store/account.js";
@@ -125,6 +125,7 @@ const showTranslated = ref(false)
 const translated = ref(null)
 const bannerDismissed = ref(false)
 const sourceLang = ref('')
+const shadowHtmlRef = ref(null)
 
 const { t, locale } = useI18n()
 const targetLang = computed(() => uiLang(locale.value))
@@ -315,17 +316,78 @@ async function handleTranslate(lang) {
 
   translating.value = true
   try {
-    const data = await emailTranslate({
+    const target = lang || targetLang.value
+    const source = sourceLang.value || 'en'
+    const originalHtml = email.value.content || ''
+
+    // 主题单独翻
+    const subjectData = await emailTranslate({
       subject: email.value.subject || '',
-      content: email.value.content || '',
-      text: email.value.text || '',
-      targetLang: lang || targetLang.value,
-      sourceLang: sourceLang.value || 'en',
+      content: '',
+      text: '',
+      targetLang: target,
+      sourceLang: source,
     })
-    if (!data?.content && !data?.text && !data?.subject) {
+
+    let content = originalHtml
+    let text = email.value.text || ''
+
+    if (originalHtml) {
+      // 像浏览器一样：在已渲染 DOM 上替换文字，保留全部样式
+      showTranslated.value = false
+      await nextTick()
+      await nextTick()
+
+      const texts = shadowHtmlRef.value?.collectTexts?.() || []
+      if (texts.length) {
+        const { list } = await emailTranslateTexts({
+          texts,
+          targetLang: target,
+          sourceLang: source,
+        })
+        const changed = shadowHtmlRef.value?.applyTexts?.(list || []) || 0
+        if (changed > 0) {
+          content = shadowHtmlRef.value.exportHtml()
+          text = shadowHtmlRef.value.getPlainText?.() || text
+        }
+      }
+
+      // DOM 路径没改动时，再走服务端 HTML 翻译兜底
+      if (content === originalHtml || !hasTargetLangText(content, target)) {
+        const data = await emailTranslate({
+          subject: '',
+          content: originalHtml,
+          text: email.value.text || '',
+          targetLang: target,
+          sourceLang: source,
+        })
+        if (data?.content && hasTargetLangText(data.content, target)) {
+          content = data.content
+          text = data.text || text
+        }
+      }
+    } else if (email.value.text) {
+      const data = await emailTranslate({
+        subject: '',
+        content: '',
+        text: email.value.text || '',
+        targetLang: target,
+        sourceLang: source,
+      })
+      content = data?.content || ''
+      text = data?.text || ''
+    }
+
+    if (!hasTargetLangText(content, target) && !hasTargetLangText(subjectData?.subject || '', target)) {
       throw new Error('empty translation')
     }
-    translated.value = data
+
+    translated.value = {
+      subject: subjectData?.subject || email.value.subject,
+      content,
+      text,
+      targetLang: target,
+    }
     showTranslated.value = true
   } catch (e) {
     console.error(e)
@@ -337,6 +399,14 @@ async function handleTranslate(lang) {
   } finally {
     translating.value = false
   }
+}
+
+function hasTargetLangText(input, lang) {
+  const sample = String(input || '').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ')
+  if (lang === 'zh') return /[\u4E00-\u9FFF]/.test(sample)
+  if (lang === 'ja') return /[\u3040-\u30FF\u4E00-\u9FFF]/.test(sample)
+  if (lang === 'ko') return /[\uAC00-\uD7AF]/.test(sample)
+  return /[A-Za-z]/.test(sample)
 }
 
 function toMessage(message) {
