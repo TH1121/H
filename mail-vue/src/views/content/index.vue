@@ -193,7 +193,7 @@ watch(() => email.value?.emailId, () => {
 })
 
 watch(
-  () => [email.value?.emailId, email.value?.subject, email.value?.text, email.value?.content],
+  () => [email.value?.emailId, email.value?.subject, email.value?.text, email.value?.content, targetLang.value],
   () => {
     if (translated.value) return
     const sample = [email.value?.subject, email.value?.text, email.value?.content]
@@ -201,7 +201,8 @@ watch(
       .join('\n')
     const detected = detectEmailLang(sample)
     sourceLang.value = detected && detected !== targetLang.value ? detected : ''
-  }
+  },
+  { immediate: true }
 )
 
 let readRequesting = false
