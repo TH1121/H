@@ -103,42 +103,45 @@ const aiService = {
 			const trimmed = raw.trim();
 			if (!trimmed || !this.needsTranslate(trimmed, targetLang)) return;
 			if (this.isUrlLike(trimmed)) return;
-			jobs.push({ index, node, raw, text: this.cleanForTranslate(trimmed) });
+			const text = this.cleanForTranslate(trimmed);
+			if (!text) return;
+			jobs.push({ index, node, raw, text });
 		});
+
+		// 先翻长段落，保证标题/正文优先保留在 HTML 结构里
+		jobs.sort((a, b) => b.text.length - a.text.length);
 
 		if (!jobs.length) {
 			return this.translatePlainFallback(c, html, targetLang, sourceLang);
 		}
 
+		let changed = 0;
 		await this.runPool(jobs, TRANSLATE_CONCURRENCY, async (job) => {
-			const translated = await this.translateOneChunk(c, job.text, sourceLang, targetLang);
+			// HTML 节点通常不含追踪链接，优先 m2m 更快，尽量翻完并保住样式
+			const translated = await this.translateOneChunk(c, job.text, sourceLang, targetLang, true);
 			if (!translated || this.isGarbageTranslation(job.text, translated) || !this.looksTranslated(job.text, translated, targetLang)) {
 				return;
 			}
 			const leading = job.raw.match(/^\s*/)?.[0] || '';
 			const trailing = job.raw.match(/\s*$/)?.[0] || '';
 			job.node.textContent = leading + translated.trim() + trailing;
+			changed += 1;
 		});
 
-		const content = document.body.innerHTML;
-		const checkText = this.cleanForTranslate(emailUtils.htmlToText(content) || '');
-		const sourceText = this.cleanForTranslate(
-			emailUtils.htmlToText(html) || this.stripHtml(html) || ''
-		).slice(0, MAX_TRANSLATE_CHARS);
-
-		// 整封信允许保留品牌英文；只要有足够目标语言且不是垃圾译文，就保留 HTML 样式
-		if (!checkText || this.isGarbageTranslation(sourceText, checkText) || !this.hasEnoughTargetLang(checkText, targetLang)) {
-			return this.translatePlainFallback(c, html, targetLang, sourceLang, sourceText);
+		// 只要有节点翻成功，就返回原 HTML 结构（像浏览器翻译一样保留版式）
+		// 不再因为“中文比例不够”整封打成纯文本
+		if (changed > 0) {
+			return this.serializeTranslatedHtml(document);
 		}
-		return content;
+		return this.translatePlainFallback(c, html, targetLang, sourceLang);
 	},
 
-	hasEnoughTargetLang(text, targetLang) {
-		const dst = String(text || '');
-		if (targetLang === 'zh') return (dst.match(/[\u4E00-\u9FFF]/g) || []).length >= 12;
-		if (targetLang === 'ja') return (dst.match(/[\u3040-\u30FF\u4E00-\u9FFF]/g) || []).length >= 12;
-		if (targetLang === 'ko') return (dst.match(/[\uAC00-\uD7AF]/g) || []).length >= 12;
-		return (dst.match(/[A-Za-z]/g) || []).length >= 12;
+	serializeTranslatedHtml(document) {
+		// 把 <head> 里的 style 一并带回，避免只返回 body 时丢样式
+		const headStyles = Array.from(document.head?.querySelectorAll?.('style') || [])
+			.map((el) => el.outerHTML)
+			.join('');
+		return `${headStyles}${document.body.innerHTML}`;
 	},
 
 	async translatePlainFallback(c, html, targetLang, sourceLang, preparedPlain = '') {
@@ -269,15 +272,23 @@ const aiService = {
 		return parts.filter(Boolean).join('\n\n').trim() || trimmed;
 	},
 
-	async translateOneChunk(c, chunk, sourceLang, targetLang) {
+	async translateOneChunk(c, chunk, sourceLang, targetLang, preferM2m = false) {
 		const from = this.normalizeLang(sourceLang);
 		const to = this.normalizeLang(targetLang);
 		const clean = this.cleanForTranslate(chunk);
 		if (!clean) return '';
 
-		let translated = await this.translateWithChat(c, clean, to);
-		if (this.isGarbageTranslation(clean, translated) || !this.looksTranslated(clean, translated, to)) {
+		let translated = '';
+		if (preferM2m) {
 			translated = await this.translateWithM2m(c, clean, from, to);
+			if (this.isGarbageTranslation(clean, translated) || !this.looksTranslated(clean, translated, to)) {
+				translated = await this.translateWithChat(c, clean, to);
+			}
+		} else {
+			translated = await this.translateWithChat(c, clean, to);
+			if (this.isGarbageTranslation(clean, translated) || !this.looksTranslated(clean, translated, to)) {
+				translated = await this.translateWithM2m(c, clean, from, to);
+			}
 		}
 		if (this.isGarbageTranslation(clean, translated) || !this.looksTranslated(clean, translated, to)) {
 			translated = await this.translateWithChat(c, clean, to, true);
