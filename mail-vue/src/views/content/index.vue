@@ -9,27 +9,6 @@
       </span>
       <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openReply" icon="la:reply" width="21" height="21" />
       <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openForward" icon="iconoir:arrow-up-right" width="20" height="20" />
-      <el-dropdown trigger="click" @command="handleTranslate">
-        <span class="translate-trigger" :class="{ loading: translating }" :title="$t('translateEmail')">
-          <Icon class="icon" :icon="translating ? 'svg-spinners:180-ring' : 'material-symbols:translate-rounded'" width="20" height="20"/>
-        </span>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item disabled>{{ $t('translateTo') }}</el-dropdown-item>
-            <el-dropdown-item command="zh">{{ $t('translateLangZh') }}</el-dropdown-item>
-            <el-dropdown-item command="en">{{ $t('translateLangEn') }}</el-dropdown-item>
-            <el-dropdown-item command="ja">{{ $t('translateLangJa') }}</el-dropdown-item>
-            <el-dropdown-item command="ko">{{ $t('translateLangKo') }}</el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-      <span
-          v-if="translated"
-          class="translate-toggle"
-          @click="showTranslated = !showTranslated"
-      >
-        {{ showTranslated ? $t('showOriginal') : $t('showTranslation') }}
-      </span>
     </div>
     <div></div>
     <el-scrollbar class="scrollbar">
@@ -51,10 +30,21 @@
                 <div>{{ formatDetailDate(email.createTime) }}</div>
               </div>
             </div>
-            <el-alert v-if="showTranslated && translated" :closable="false" :title="translateBanner" class="email-msg" type="success" show-icon />
             <el-alert v-if="email.status === 3" :closable="false" :title="toMessage(email.message)" class="email-msg" type="error" show-icon />
             <el-alert v-if="email.status === 4" :closable="false" :title="$t('complained')" class="email-msg" type="warning" show-icon />
             <el-alert v-if="email.status === 5" :closable="false" :title="$t('delayed')" class="email-msg" type="warning" show-icon />
+          </div>
+          <div class="translate-banner" v-if="showTranslateBanner">
+            <Icon class="translate-icon" icon="material-symbols:translate-rounded" width="20" height="20"/>
+            <div class="translate-copy">
+              <div class="translate-title">{{ translateHint }}</div>
+              <button class="translate-action" type="button" :disabled="translating" @click="onTranslateAction">
+                {{ translating ? $t('translating') : translateAction }}
+              </button>
+            </div>
+            <button class="translate-close" type="button" :aria-label="$t('cancel')" @click="dismissTranslate">
+              <Icon icon="material-symbols:close-rounded" width="18" height="18"/>
+            </button>
           </div>
           <el-scrollbar class="htm-scrollbar" :class="!email.attList?.length ? 'bottom-distance' : ''">
             <ShadowHtml class="shadow-html" :html="formatImage(displayContent)" v-if="displayContent" />
@@ -114,6 +104,7 @@ import {allEmailDelete} from "@/request/all-email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
+import {detectEmailLang, uiLang} from "@/utils/detect-lang.js";
 
 const uiStore = useUiStore();
 const settingStore = useSettingStore();
@@ -132,8 +123,11 @@ const srcList = reactive([])
 const translating = ref(false)
 const showTranslated = ref(false)
 const translated = ref(null)
+const bannerDismissed = ref(false)
+const sourceLang = ref('')
 
 const { t, locale } = useI18n()
+const targetLang = computed(() => uiLang(locale.value))
 
 const displaySubject = computed(() => {
   if (showTranslated.value && translated.value?.subject) return translated.value.subject
@@ -154,15 +148,36 @@ const displayText = computed(() => {
   return email.value.text || ''
 })
 
-const translateBanner = computed(() => {
-  const lang = translated.value?.targetLang
-  const labelMap = {
-    zh: t('translateLangZh'),
-    en: t('translateLangEn'),
-    ja: t('translateLangJa'),
-    ko: t('translateLangKo'),
+const langName = (code) => {
+  const map = {
+    zh: t('langNameZh'),
+    en: t('langNameEn'),
+    ja: t('langNameJa'),
+    ko: t('langNameKo'),
   }
-  return `${t('translateSuccess')} · ${labelMap[lang] || lang}`
+  return map[code] || code
+}
+
+const showTranslateBanner = computed(() => {
+  if (bannerDismissed.value) return false
+  if (translated.value) return true
+  return !!sourceLang.value && sourceLang.value !== targetLang.value
+})
+
+const translateHint = computed(() => {
+  if (showTranslated.value && translated.value) {
+    return t('translatedToLang', { lang: langName(translated.value.targetLang || targetLang.value) })
+  }
+  if (sourceLang.value) {
+    return t('emailSeemsInLang', { lang: langName(sourceLang.value) })
+  }
+  return t('emailSeemsInLang', { lang: langName('en') })
+})
+
+const translateAction = computed(() => {
+  if (translated.value && showTranslated.value) return t('showOriginal')
+  if (translated.value && !showTranslated.value) return t('showTranslation')
+  return t('translateToLang', { lang: langName(targetLang.value) })
 })
 
 watch(() => accountStore.currentAccountId, () => {
@@ -173,7 +188,21 @@ watch(() => email.value?.emailId, () => {
   translated.value = null
   showTranslated.value = false
   translating.value = false
+  bannerDismissed.value = false
+  sourceLang.value = ''
 })
+
+watch(
+  () => [email.value?.emailId, email.value?.subject, email.value?.text, email.value?.content],
+  () => {
+    if (translated.value) return
+    const sample = [email.value?.subject, email.value?.text, email.value?.content]
+      .filter(Boolean)
+      .join('\n')
+    const detected = detectEmailLang(sample)
+    sourceLang.value = detected && detected !== targetLang.value ? detected : ''
+  }
+)
 
 let readRequesting = false
 
@@ -238,13 +267,24 @@ function openForward() {
   uiStore.writerRef.openForward(email.value)
 }
 
-async function handleTranslate(targetLang) {
-  if (translating.value || !email.value?.emailId) return
+function dismissTranslate() {
+  bannerDismissed.value = true
+  if (translated.value) {
+    showTranslated.value = false
+  }
+}
 
-  if (translated.value?.targetLang === targetLang) {
-    showTranslated.value = true
+async function onTranslateAction() {
+  if (translating.value) return
+  if (translated.value) {
+    showTranslated.value = !showTranslated.value
     return
   }
+  await handleTranslate(targetLang.value)
+}
+
+async function handleTranslate(lang) {
+  if (translating.value || !email.value?.emailId) return
 
   translating.value = true
   try {
@@ -252,15 +292,10 @@ async function handleTranslate(targetLang) {
       subject: email.value.subject || '',
       content: email.value.content || '',
       text: email.value.text || '',
-      targetLang: targetLang || (locale.value === 'en' ? 'en' : 'zh'),
+      targetLang: lang || targetLang.value,
     })
     translated.value = data
     showTranslated.value = true
-    ElMessage({
-      message: t('translateSuccess'),
-      type: 'success',
-      plain: true,
-    })
   } catch (e) {
     console.error(e)
   } finally {
@@ -384,31 +419,6 @@ const handleDelete = () => {
     &:hover {
       color: var(--tech-accent);
       filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.4));
-    }
-  }
-
-  .translate-trigger {
-    display: inline-flex;
-    align-items: center;
-    cursor: pointer;
-    outline: none;
-
-    &.loading {
-      pointer-events: none;
-      opacity: 0.7;
-    }
-  }
-
-  .translate-toggle {
-    margin-left: 2px;
-    font-size: 13px;
-    color: var(--tech-accent, #06B6D4);
-    cursor: pointer;
-    user-select: none;
-    white-space: nowrap;
-
-    &:hover {
-      text-decoration: underline;
     }
   }
 }
@@ -573,6 +583,75 @@ const handleDelete = () => {
         white-space: nowrap;
         font-weight: bold;
         padding-right: 10px;
+      }
+    }
+
+    .translate-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      max-width: 520px;
+      margin: -4px 0 16px;
+      padding: 12px 12px 12px 14px;
+      border-radius: 12px;
+      background: color-mix(in srgb, #E8F0FE 88%, var(--surface-color) 12%);
+      color: var(--el-text-color-primary);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, #1A73E8 12%, transparent);
+
+      .translate-icon {
+        flex: none;
+        margin-top: 1px;
+        color: #1A73E8;
+      }
+
+      .translate-copy {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .translate-title {
+        font-size: 14px;
+        line-height: 1.45;
+        color: var(--el-text-color-primary);
+      }
+
+      .translate-action {
+        margin-top: 4px;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: #1A73E8;
+        font-size: 14px;
+        line-height: 1.4;
+        cursor: pointer;
+
+        &:hover:not(:disabled) {
+          text-decoration: underline;
+        }
+
+        &:disabled {
+          cursor: default;
+          opacity: 0.7;
+        }
+      }
+
+      .translate-close {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        margin-top: -4px;
+        margin-right: -4px;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: var(--secondary-text-color, #5f6368);
+        cursor: pointer;
+
+        &:hover {
+          background: color-mix(in srgb, #1A73E8 8%, transparent);
+        }
       }
     }
   }

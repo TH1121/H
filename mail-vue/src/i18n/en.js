@@ -385,14 +385,15 @@ const en = {
     endDate: 'End date',
     translateEmail: 'Translate',
     translating: 'Translating…',
-    translateTo: 'Translate to',
     showOriginal: 'Show original',
     showTranslation: 'Show translation',
-    translateSuccess: 'Translated',
-    translateLangZh: 'Chinese',
-    translateLangEn: 'English',
-    translateLangJa: 'Japanese',
-    translateLangKo: 'Korean',
+    emailSeemsInLang: 'This message appears to be written in {lang}',
+    translateToLang: 'Translate to {lang}',
+    translatedToLang: 'Translated to {lang}',
+    langNameZh: 'Chinese',
+    langNameEn: 'English',
+    langNameJa: 'Japanese',
+    langNameKo: 'Korean',
 }
 
 export default en
