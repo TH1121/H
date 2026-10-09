@@ -71,7 +71,7 @@ const aiService = {
 		const translatedText = plainBody
 			? await this.translateText(c, plainBody, targetLang, sourceLang)
 			: '';
-		if (plainBody && (this.isGarbageTranslation(plainBody, translatedText) || !this.looksTranslated(plainBody, translatedText, targetLang))) {
+		if (plainBody && !this.isAcceptableTranslation(plainBody, translatedText, targetLang)) {
 			throw new BizError(t('translateEmpty'));
 		}
 		return {
@@ -117,9 +117,8 @@ const aiService = {
 
 		let changed = 0;
 		await this.runPool(jobs, TRANSLATE_CONCURRENCY, async (job) => {
-			// HTML 节点通常不含追踪链接，优先 m2m 更快，尽量翻完并保住样式
-			const translated = await this.translateOneChunk(c, job.text, sourceLang, targetLang, true);
-			if (!translated || this.isGarbageTranslation(job.text, translated) || !this.looksTranslated(job.text, translated, targetLang)) {
+			const translated = await this.translateOneChunk(c, job.text, sourceLang, targetLang);
+			if (!translated || !this.isAcceptableTranslation(job.text, translated, targetLang)) {
 				return;
 			}
 			const leading = job.raw.match(/^\s*/)?.[0] || '';
@@ -150,7 +149,7 @@ const aiService = {
 		)).slice(0, MAX_TRANSLATE_CHARS);
 		if (!plainBody) return html;
 		const translatedText = await this.translateText(c, plainBody, targetLang, sourceLang);
-		if (!translatedText || this.isGarbageTranslation(plainBody, translatedText) || !this.looksTranslated(plainBody, translatedText, targetLang)) {
+		if (!this.isAcceptableTranslation(plainBody, translatedText, targetLang)) {
 			throw new BizError(t('translateEmpty'));
 		}
 		return this.wrapTranslatedHtml(translatedText);
@@ -272,35 +271,33 @@ const aiService = {
 		return parts.filter(Boolean).join('\n\n').trim() || trimmed;
 	},
 
-	async translateOneChunk(c, chunk, sourceLang, targetLang, preferM2m = false) {
+	async translateOneChunk(c, chunk, sourceLang, targetLang) {
 		const from = this.normalizeLang(sourceLang);
 		const to = this.normalizeLang(targetLang);
 		const clean = this.cleanForTranslate(chunk);
 		if (!clean) return '';
 
-		let translated = '';
-		if (preferM2m) {
-			translated = await this.translateWithM2m(c, clean, from, to);
-			if (this.isGarbageTranslation(clean, translated) || !this.looksTranslated(clean, translated, to)) {
-				translated = await this.translateWithChat(c, clean, to);
-			}
-		} else {
+		// 专用翻译模型优先，减少聊天模型扩写/幻觉
+		let translated = await this.translateWithM2m(c, clean, from, to);
+		if (!this.isAcceptableTranslation(clean, translated, to)) {
 			translated = await this.translateWithChat(c, clean, to);
-			if (this.isGarbageTranslation(clean, translated) || !this.looksTranslated(clean, translated, to)) {
-				translated = await this.translateWithM2m(c, clean, from, to);
-			}
 		}
-		if (this.isGarbageTranslation(clean, translated) || !this.looksTranslated(clean, translated, to)) {
-			translated = await this.translateWithChat(c, clean, to, true);
-		}
-		if (this.isGarbageTranslation(clean, translated) || !this.looksTranslated(clean, translated, to)) {
+		if (!this.isAcceptableTranslation(clean, translated, to)) {
 			return '';
 		}
 		return this.cleanTranslatedOutput(translated);
 	},
 
+	isAcceptableTranslation(original, translated, targetLang) {
+		return this.looksTranslated(original, translated, targetLang)
+			&& !this.isGarbageTranslation(original, translated)
+			&& !this.isHallucinatedTranslation(original, translated, targetLang);
+	},
+
 	cleanTranslatedOutput(text) {
 		return String(text || '')
+			.replace(/^\s*(?:译文|翻译|Translation)\s*[:：]\s*/i, '')
+			.replace(/^["「『]|["」』]$/g, '')
 			.replace(/https?:\/\/\S+/gi, ' ')
 			.replace(/(您好[!！]?\s*){3,}/g, '您好！')
 			.replace(/(你好[!！]?\s*){3,}/g, '你好！')
@@ -320,7 +317,7 @@ const aiService = {
 		const helloZh = (dst.match(/您?好[!！]?/g) || []).length;
 		if (helloZh >= 4) return true;
 
-		if (dst.length > Math.max(120, src.length * 2.5)) return true;
+		if (dst.length > Math.max(80, src.length * 1.8)) return true;
 
 		const letters = compact.replace(/[^\p{L}]/gu, '');
 		if (letters.length > 60) {
@@ -330,6 +327,23 @@ const aiService = {
 
 		const urlCount = (dst.match(/https?:\/\//gi) || []).length;
 		if (urlCount >= 3) return true;
+
+		return false;
+	},
+
+	isHallucinatedTranslation(original, translated, targetLang) {
+		const src = String(original || '').trim();
+		const dst = String(translated || '').trim();
+		if (!src || !dst) return true;
+
+		const srcParts = src.split(/[.!?。！？;；]+/).map(s => s.trim()).filter(s => s.length > 1);
+		const dstParts = dst.split(/[.!?。！？;；]+/).map(s => s.trim()).filter(s => s.length > 1);
+		if (srcParts.length <= 2 && dstParts.length >= srcParts.length + 2) return true;
+		if (srcParts.length > 2 && dstParts.length > Math.ceil(srcParts.length * 1.6) + 1) return true;
+
+		// 英译中通常不会明显变长；过长多半是模型扩写
+		if (targetLang === 'zh' && dst.length > src.length * 1.6 + 12) return true;
+		if (targetLang !== 'zh' && dst.length > src.length * 2 + 20) return true;
 
 		return false;
 	},
@@ -348,20 +362,27 @@ const aiService = {
 		}
 	},
 
-	async translateWithChat(c, text, targetLang, strict = false) {
+	async translateWithChat(c, text, targetLang) {
 		try {
 			const langName = LANG_LABEL[targetLang] || LANG_LABEL.zh;
 			const model = c.env.ai_model || CHAT_MODEL_DEFAULT;
-			const system = strict
-				? `Translate the email excerpt into ${langName}. Output fluent ${langName} only. Never repeat the same word or greeting. Do not invent content. Do not output URLs.`
-				: `You are a professional email translator. Translate into ${langName}. Keep meaning and tone. Output only the translation. Do not repeat phrases. Do not output URLs.`;
+			const maxTokens = Math.min(1024, Math.max(64, Math.ceil(text.length * 1.2)));
 			const result = await c.env.ai.run(model, {
 				messages: [
-					{ role: 'system', content: system },
+					{
+						role: 'system',
+						content: `You are a literal email translator. Translate the user text into ${langName}.
+Rules:
+- Translate ONLY the given text. Do not add greetings, explanations, summaries, or extra sentences.
+- Do not invent facts, links, product names, or details not present in the source.
+- Keep roughly the same amount of information. Do not expand.
+- Keep brand names like Google Play unchanged when appropriate.
+- Output only the translation, nothing else.`
+					},
 					{ role: 'user', content: text }
 				],
-				temperature: 0.1,
-				max_tokens: 1024
+				temperature: 0,
+				max_tokens: maxTokens
 			});
 			const content = typeof result === 'string' ? result : (result?.response || '');
 			return String(content || '').trim();
@@ -376,11 +397,9 @@ const aiService = {
 		const src = String(original || '').trim();
 		const dst = String(translated || '').trim();
 		if (!dst || dst === src) return false;
-		if (this.isGarbageTranslation(src, dst)) return false;
 		if (targetLang === 'zh') {
 			const han = (dst.match(/[\u4E00-\u9FFF]/g) || []).length;
 			if (han < 2) return false;
-			// 短句只要出现中文即可；长句允许保留品牌英文
 			if (src.length <= 48) return true;
 			const latin = (dst.match(/[A-Za-z]/g) || []).length;
 			return han >= Math.max(4, latin * 0.25);
