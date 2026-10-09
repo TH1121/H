@@ -21,41 +21,26 @@ let shadowRoot = null
 function updateContent() {
   if (!shadowRoot) return;
 
-  // 1. 提取 <body> 的 style 属性（如果存在）
-  const bodyStyleRegex = /<body[^>]*style="([^"]*)"[^>]*>/i;
-  const bodyStyleMatch = props.html.match(bodyStyleRegex);
+  const bodyStyleMatch = props.html.match(/<body[^>]*style="([^"]*)"[^>]*>/i);
   const bodyStyle = bodyStyleMatch ? bodyStyleMatch[1] : '';
 
-  // 2. 移除 <body> 标签（保留内容）
-  const cleanedHtml = props.html.replace(/<\/?body[^>]*>/gi, '');
+  const emailStyles = [];
+  let cleanedHtml = String(props.html || '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, (block) => {
+      emailStyles.push(block);
+      return '';
+    })
+    .replace(/<\/?(?:html|head|body)[^>]*>/gi, '')
+    .replace(/<!DOCTYPE[^>]*>/gi, '');
 
-  // 3. 将 body 的 style 应用到 .shadow-content
+  // 不覆盖邮件自身样式：只做基础隔离，保留原信 table/inline style 版式
   shadowRoot.innerHTML = `
     <style>
       :host {
-        all: initial;
+        display: block;
         width: 100%;
         height: 100%;
-        font-family: Inter, 'Helvetica Neue', Helvetica, 'PingFang SC',
-                    'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
-        font-size: 14px;
-        line-height: 1.5;
-        color: #13181D;
         word-break: break-word;
-      }
-
-      h1, h2, h3, h4 {
-          font-size: 18px;
-          font-weight: 700;
-      }
-
-      p {
-        margin: 0;
-      }
-
-      a {
-        text-decoration: none;
-        color: #0E70DF;
       }
 
       .shadow-content {
@@ -63,15 +48,15 @@ function updateContent() {
         width: fit-content;
         height: fit-content;
         min-width: 100%;
-        ${bodyStyle ? bodyStyle : ''} /* 注入 body 的 style */
+        ${bodyStyle || ''}
       }
 
-      img:not(table img) {
+      .shadow-content img {
         max-width: 100%;
-        height: auto !important;
+        height: auto;
       }
-
     </style>
+    ${emailStyles.join('\n')}
     <div class="shadow-content">
       ${cleanedHtml}
     </div>
@@ -91,7 +76,7 @@ function autoScale() {
 
   if (childWidth === 0) return
 
-  const scale = parentWidth / childWidth
+  const scale = Math.min(1, parentWidth / childWidth)
 
   const hostElement = shadowRoot.host
   hostElement.style.zoom = scale
@@ -114,7 +99,6 @@ watch(() => props.html, () => {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  font-family: Inter, "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
 }
 
 .content-html {
