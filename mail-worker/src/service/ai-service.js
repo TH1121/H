@@ -166,9 +166,23 @@ const aiService = {
 		const bodyHtml = document.body?.innerHTML || '';
 		const bodyStyle = document.body?.getAttribute?.('style') || '';
 		const styledBody = bodyStyle
-			? `<div style="${bodyStyle.replace(/"/g, '&quot;')}">${bodyHtml}</div>`
+			? `<div style="${this.escapeHtml(bodyStyle)}">${bodyHtml}</div>`
 			: bodyHtml;
 		const result = `${headStyles}${styledBody}`;
+		const visible = String(result || '')
+			.replace(/<style[\s\S]*?<\/style>/gi, ' ')
+			.replace(/<[^>]+>/g, ' ')
+			.replace(/\s+/g, '')
+			.length;
+		const originalVisible = String(originalHtml || '')
+			.replace(/<style[\s\S]*?<\/style>/gi, ' ')
+			.replace(/<[^>]+>/g, ' ')
+			.replace(/\s+/g, '')
+			.length;
+		// 序列化后几乎没字，说明解析/改写失败，回退原 HTML，避免前端空白
+		if (visible < 20 || (originalVisible > 80 && visible < originalVisible * 0.2)) {
+			return originalHtml;
+		}
 		return result || originalHtml;
 	},
 

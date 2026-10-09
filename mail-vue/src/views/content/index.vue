@@ -134,15 +134,27 @@ const displaySubject = computed(() => {
   return email.value.subject
 })
 
+function visibleTextLength(html) {
+  return String(html || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, '')
+    .length
+}
+
 const displayContent = computed(() => {
   if (showTranslated.value && translated.value) {
     const html = translated.value.content || ''
-    if (html) return html
+    const original = email.value.content || ''
+    // 译文 HTML 几乎没有可见文字时，回退原文，避免整页空白
+    if (html && visibleTextLength(html) >= 20) return html
+    if (html && original && visibleTextLength(html) >= visibleTextLength(original) * 0.3) return html
     const text = translated.value.text || ''
     if (text) {
       return `<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7">${escapeHtml(text)}</div>`
     }
-    return ''
+    return original
   }
   return email.value.content || ''
 })
