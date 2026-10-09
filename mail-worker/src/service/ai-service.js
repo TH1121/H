@@ -4,20 +4,22 @@ import { settingConst } from '../const/entity-const';
 import BizError from '../error/biz-error';
 import { t } from '../i18n/i18n';
 
-const LANG_LABEL = {
-	zh: 'Simplified Chinese',
-	en: 'English',
-	ja: 'Japanese',
-	ko: 'Korean',
-	fr: 'French',
-	de: 'German',
-	es: 'Spanish',
-	ru: 'Russian',
+const TRANSLATE_MODEL = '@cf/meta/m2m100-1.2b';
+const M2M_LANG = {
+	zh: 'zh',
+	en: 'en',
+	ja: 'ja',
+	ko: 'ko',
+	fr: 'fr',
+	de: 'de',
+	es: 'es',
+	ru: 'ru',
 };
 
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'TITLE', 'NOSCRIPT', 'TEXTAREA', 'CODE']);
-const MAX_TRANSLATE_CHARS = 6000;
-const BATCH_CHARS = 2800;
+const MAX_TRANSLATE_CHARS = 8000;
+const MAX_SEGMENT_CHARS = 1500;
+const TRANSLATE_CONCURRENCY = 4;
 
 const aiService = {
 
@@ -27,8 +29,8 @@ const aiService = {
 			throw new BizError(t('aiNotConfigured'));
 		}
 
-		const targetLang = (params.targetLang || 'zh').toLowerCase();
-		const langName = LANG_LABEL[targetLang] || LANG_LABEL.zh;
+		const targetLang = this.normalizeLang(params.targetLang || 'zh');
+		const sourceLang = this.normalizeLang(params.sourceLang || 'en');
 		const subject = (params.subject || '').trim();
 		const html = (params.content || '').trim();
 		const plain = (params.text || '').trim();
@@ -38,11 +40,11 @@ const aiService = {
 		}
 
 		const translatedSubject = subject
-			? await this.translateText(c, subject, langName)
+			? await this.translateText(c, subject, targetLang, sourceLang)
 			: '';
 
 		if (html) {
-			const content = await this.translateHtml(c, html, langName);
+			const content = await this.translateHtml(c, html, targetLang, sourceLang);
 			return {
 				subject: translatedSubject || subject,
 				text: emailUtils.htmlToText(content),
@@ -52,7 +54,7 @@ const aiService = {
 		}
 
 		const body = plain.replace(/\s+/g, ' ').trim().slice(0, MAX_TRANSLATE_CHARS);
-		const translatedText = body ? await this.translateText(c, body, langName) : '';
+		const translatedText = body ? await this.translateText(c, body, targetLang, sourceLang) : '';
 		const safeText = this.escapeHtml(translatedText || '');
 		return {
 			subject: translatedSubject || subject,
@@ -62,7 +64,12 @@ const aiService = {
 		};
 	},
 
-	async translateHtml(c, html, langName) {
+	normalizeLang(lang) {
+		const code = String(lang || '').toLowerCase().split('-')[0];
+		return M2M_LANG[code] || 'en';
+	},
+
+	async translateHtml(c, html, targetLang, sourceLang) {
 		const wrapped = html.includes('<body')
 			? html
 			: `<!DOCTYPE html><html><body>${html}</body></html>`;
@@ -73,10 +80,7 @@ const aiService = {
 
 		const textNodes = [];
 		let usedChars = 0;
-		this.collectTextNodes(document.body, textNodes, () => {
-			if (usedChars >= MAX_TRANSLATE_CHARS) return false;
-			return true;
-		}, (len) => {
+		this.collectTextNodes(document.body, textNodes, () => usedChars < MAX_TRANSLATE_CHARS, (len) => {
 			usedChars += len;
 		});
 
@@ -85,11 +89,10 @@ const aiService = {
 		}
 
 		const originals = textNodes.map(node => node.textContent);
-		const translated = await this.translateSegments(c, originals, langName);
+		const translated = await this.translateSegments(c, originals, targetLang, sourceLang);
 
 		textNodes.forEach((node, index) => {
 			if (typeof translated[index] === 'string' && translated[index].length) {
-				// 保留原文首尾空白，避免打乱布局
 				const raw = originals[index];
 				const leading = raw.match(/^\s*/)?.[0] || '';
 				const trailing = raw.match(/\s*$/)?.[0] || '';
@@ -97,7 +100,6 @@ const aiService = {
 			}
 		});
 
-		// 尽量返回与入参同形态的 HTML（无外层 html/body 时只回 body 内容）
 		if (!html.includes('<body')) {
 			return document.body.innerHTML;
 		}
@@ -128,102 +130,94 @@ const aiService = {
 		walk(root);
 	},
 
-	async translateSegments(c, segments, langName) {
+	async translateSegments(c, segments, targetLang, sourceLang) {
 		const result = new Array(segments.length).fill('');
-		let index = 0;
+		let cursor = 0;
 
-		while (index < segments.length) {
-			const batch = [];
-			const batchIndexes = [];
-			let chars = 0;
-
-			while (index < segments.length) {
-				const item = segments[index];
-				const len = item.trim().length;
-				if (batch.length && chars + len > BATCH_CHARS) break;
-				batch.push(item.trim());
-				batchIndexes.push(index);
-				chars += len;
-				index += 1;
-				if (chars >= BATCH_CHARS) break;
+		const worker = async () => {
+			while (cursor < segments.length) {
+				const index = cursor++;
+				const raw = segments[index] || '';
+				const text = raw.trim();
+				if (!text || !this.needsTranslate(text, targetLang)) {
+					result[index] = text;
+					continue;
+				}
+				try {
+					result[index] = await this.translateText(c, text, targetLang, sourceLang);
+				} catch (e) {
+					console.error('segment translate failed:', e);
+					result[index] = text;
+				}
 			}
+		};
 
-			const translatedBatch = await this.translateJsonArray(c, batch, langName);
-			batchIndexes.forEach((segIndex, i) => {
-				result[segIndex] = translatedBatch[i] ?? batch[i] ?? '';
-			});
-		}
-
+		const workers = Array.from(
+			{ length: Math.min(TRANSLATE_CONCURRENCY, segments.length) },
+			() => worker()
+		);
+		await Promise.all(workers);
 		return result;
 	},
 
-	async translateJsonArray(c, segments, langName) {
-		if (!segments.length) return [];
-
-		const ai = c.env.ai;
-		const model = c.env.ai_model || '@cf/meta/llama-3.1-8b-instruct-fast';
-		const result = await ai.run(model, {
-			messages: [
-				{
-					role: 'system',
-					content: `You are a professional email translator. Translate every string in the JSON array into ${langName}. Return ONLY a JSON array of the same length. Do not add keys, markdown, or explanations. Keep URLs, emails, and code-like tokens unchanged when possible.`
-				},
-				{
-					role: 'user',
-					content: JSON.stringify(segments)
-				}
-			],
-			temperature: 0.1,
-			max_tokens: 2048
-		});
-
-		const content = typeof result === 'string' ? result : (result?.response || '');
-		const parsed = this.parseJsonArray(content, segments.length);
-		if (parsed) return parsed;
-
-		// 回退：整批拼成一段翻译后再按原段数尽量切分失败时逐条翻译
-		const fallback = [];
-		for (const seg of segments) {
-			fallback.push(await this.translateText(c, seg, langName));
+	needsTranslate(text, targetLang) {
+		if (!/[\p{L}]/u.test(text)) return false;
+		if (/^https?:\/\/\S+$/i.test(text)) return false;
+		if (/^[\w.+-]+@[\w.-]+$/.test(text)) return false;
+		if (targetLang === 'zh' && /[\u4E00-\u9FFF]/.test(text) && !/[A-Za-z]{3,}/.test(text)) {
+			return false;
 		}
-		return fallback;
+		return true;
 	},
 
-	parseJsonArray(content, expectedLength) {
-		if (!content) return null;
-		const text = String(content).trim();
-		const start = text.indexOf('[');
-		const end = text.lastIndexOf(']');
-		if (start < 0 || end <= start) return null;
-		try {
-			const arr = JSON.parse(text.slice(start, end + 1));
-			if (!Array.isArray(arr) || arr.length !== expectedLength) return null;
-			return arr.map(item => String(item ?? ''));
-		} catch (e) {
-			return null;
+	async translateText(c, text, targetLang, sourceLang = 'en') {
+		const trimmed = String(text || '').trim();
+		if (!trimmed) return '';
+		if (!this.needsTranslate(trimmed, targetLang)) return trimmed;
+
+		const ai = c.env.ai;
+		const from = this.normalizeLang(sourceLang);
+		const to = this.normalizeLang(targetLang);
+		if (from === to) return trimmed;
+
+		const chunks = this.splitText(trimmed, MAX_SEGMENT_CHARS);
+		const parts = [];
+		for (const chunk of chunks) {
+			const result = await ai.run(TRANSLATE_MODEL, {
+				text: chunk,
+				source_lang: from,
+				target_lang: to,
+			});
+			const translated = this.pickTranslatedText(result);
+			parts.push(translated || chunk);
 		}
+		return parts.join('').trim() || trimmed;
 	},
 
-	async translateText(c, text, langName) {
-		const ai = c.env.ai;
-		const model = c.env.ai_model || '@cf/meta/llama-3.1-8b-instruct-fast';
-		const result = await ai.run(model, {
-			messages: [
-				{
-					role: 'system',
-					content: `You are a professional email translator. Translate the user message into ${langName}. Preserve meaning and tone. Output only the translation with no quotes, labels, or explanations.`
-				},
-				{
-					role: 'user',
-					content: text
-				}
-			],
-			temperature: 0.2,
-			max_tokens: 2048
-		});
+	pickTranslatedText(result) {
+		if (!result) return '';
+		if (typeof result === 'string') return result.trim();
+		return String(
+			result.translated_text
+			|| result.translatedText
+			|| result.response
+			|| result.result?.translated_text
+			|| ''
+		).trim();
+	},
 
-		const content = typeof result === 'string' ? result : (result?.response || '');
-		return String(content || '').trim();
+	splitText(text, maxLen) {
+		if (text.length <= maxLen) return [text];
+		const chunks = [];
+		let rest = text;
+		while (rest.length > maxLen) {
+			let cut = rest.lastIndexOf(' ', maxLen);
+			if (cut < maxLen * 0.5) cut = maxLen;
+			chunks.push(rest.slice(0, cut));
+			rest = rest.slice(cut).trimStart();
+		}
+		if (rest) chunks.push(rest);
+		return chunks;
 	},
 
 	escapeHtml(str) {

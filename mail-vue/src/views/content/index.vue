@@ -294,6 +294,7 @@ async function handleTranslate(lang) {
       content: email.value.content || '',
       text: email.value.text || '',
       targetLang: lang || targetLang.value,
+      sourceLang: sourceLang.value || 'en',
     })
     translated.value = data
     showTranslated.value = true

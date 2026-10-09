@@ -18,8 +18,8 @@ export function emailRead(emailIds) {
     return http.put('/email/read', {emailIds})
 }
 
-export function emailTranslate({ subject, content, text, targetLang }) {
-    return http.post('/email/translate', { subject, content, text, targetLang })
+export function emailTranslate({ subject, content, text, targetLang, sourceLang }) {
+    return http.post('/email/translate', { subject, content, text, targetLang, sourceLang })
 }
 
 export function emailSend(form,progress) {
