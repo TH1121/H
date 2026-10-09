@@ -1,3 +1,4 @@
+import { parseHTML } from 'linkedom';
 import emailUtils from '../utils/email-utils';
 import { settingConst } from '../const/entity-const';
 import BizError from '../error/biz-error';
@@ -28,8 +29,10 @@ const LANG_LABEL = {
 	ru: 'Russian',
 };
 
-const MAX_TRANSLATE_CHARS = 4500;
+const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'TITLE', 'NOSCRIPT', 'TEXTAREA', 'CODE', 'SVG', 'HEAD']);
+const MAX_TRANSLATE_CHARS = 6000;
 const MAX_CHUNK_CHARS = 500;
+const TRANSLATE_CONCURRENCY = 3;
 
 const aiService = {
 
@@ -49,29 +52,154 @@ const aiService = {
 			throw new BizError(t('translateEmpty'));
 		}
 
-		// 先抽正文再强清洗：去掉追踪链接，避免模型对着 URL 胡翻（出现一堆「您好！」）
-		const rawBody = plain || emailUtils.htmlToText(html) || this.stripHtml(html) || '';
-		const plainBody = this.cleanForTranslate(rawBody).slice(0, MAX_TRANSLATE_CHARS);
+		const translatedSubject = subject
+			? await this.translateText(c, this.cleanForTranslate(subject), targetLang, sourceLang)
+			: '';
 
-		const [translatedSubject, translatedText] = await Promise.all([
-			subject ? this.translateText(c, this.cleanForTranslate(subject), targetLang, sourceLang) : Promise.resolve(''),
-			plainBody ? this.translateText(c, plainBody, targetLang, sourceLang) : Promise.resolve(''),
-		]);
+		if (html) {
+			const content = await this.translateHtmlPreserve(c, html, targetLang, sourceLang);
+			const text = this.cleanForTranslate(emailUtils.htmlToText(content) || '');
+			return {
+				subject: translatedSubject || subject,
+				text,
+				content,
+				targetLang,
+			};
+		}
 
+		const plainBody = this.cleanForTranslate(plain).slice(0, MAX_TRANSLATE_CHARS);
+		const translatedText = plainBody
+			? await this.translateText(c, plainBody, targetLang, sourceLang)
+			: '';
 		if (plainBody && (this.isGarbageTranslation(plainBody, translatedText) || !this.looksTranslated(plainBody, translatedText, targetLang))) {
 			throw new BizError(t('translateEmpty'));
 		}
-
-		const content = translatedText
-			? this.wrapTranslatedHtml(translatedText)
-			: '';
-
 		return {
 			subject: translatedSubject || subject,
-			text: translatedText || plainBody,
-			content,
+			text: translatedText,
+			content: translatedText ? this.wrapTranslatedHtml(translatedText) : '',
 			targetLang,
 		};
+	},
+
+	async translateHtmlPreserve(c, html, targetLang, sourceLang) {
+		const wrapped = /<body[\s>]/i.test(html)
+			? html
+			: `<!DOCTYPE html><html><body>${html}</body></html>`;
+		const { document } = parseHTML(wrapped);
+		if (!document?.body) {
+			return this.translatePlainFallback(c, html, targetLang, sourceLang);
+		}
+
+		const textNodes = [];
+		let usedChars = 0;
+		this.collectTextNodes(document.body, textNodes, () => usedChars < MAX_TRANSLATE_CHARS, (len) => {
+			usedChars += len;
+		});
+
+		const jobs = [];
+		textNodes.forEach((node, index) => {
+			const raw = node.textContent || '';
+			const trimmed = raw.trim();
+			if (!trimmed || !this.needsTranslate(trimmed, targetLang)) return;
+			if (this.isUrlLike(trimmed)) return;
+			jobs.push({ index, node, raw, text: this.cleanForTranslate(trimmed) });
+		});
+
+		if (!jobs.length) {
+			return this.translatePlainFallback(c, html, targetLang, sourceLang);
+		}
+
+		await this.runPool(jobs, TRANSLATE_CONCURRENCY, async (job) => {
+			const translated = await this.translateOneChunk(c, job.text, sourceLang, targetLang);
+			if (!translated || this.isGarbageTranslation(job.text, translated) || !this.looksTranslated(job.text, translated, targetLang)) {
+				return;
+			}
+			const leading = job.raw.match(/^\s*/)?.[0] || '';
+			const trailing = job.raw.match(/\s*$/)?.[0] || '';
+			job.node.textContent = leading + translated.trim() + trailing;
+		});
+
+		const content = document.body.innerHTML;
+		const checkText = this.cleanForTranslate(emailUtils.htmlToText(content) || '');
+		const sourceText = this.cleanForTranslate(
+			emailUtils.htmlToText(html) || this.stripHtml(html) || ''
+		).slice(0, MAX_TRANSLATE_CHARS);
+
+		// 整封信允许保留品牌英文；只要有足够目标语言且不是垃圾译文，就保留 HTML 样式
+		if (!checkText || this.isGarbageTranslation(sourceText, checkText) || !this.hasEnoughTargetLang(checkText, targetLang)) {
+			return this.translatePlainFallback(c, html, targetLang, sourceLang, sourceText);
+		}
+		return content;
+	},
+
+	hasEnoughTargetLang(text, targetLang) {
+		const dst = String(text || '');
+		if (targetLang === 'zh') return (dst.match(/[\u4E00-\u9FFF]/g) || []).length >= 12;
+		if (targetLang === 'ja') return (dst.match(/[\u3040-\u30FF\u4E00-\u9FFF]/g) || []).length >= 12;
+		if (targetLang === 'ko') return (dst.match(/[\uAC00-\uD7AF]/g) || []).length >= 12;
+		return (dst.match(/[A-Za-z]/g) || []).length >= 12;
+	},
+
+	async translatePlainFallback(c, html, targetLang, sourceLang, preparedPlain = '') {
+		const plainBody = (preparedPlain || this.cleanForTranslate(
+			emailUtils.htmlToText(html) || this.stripHtml(html) || ''
+		)).slice(0, MAX_TRANSLATE_CHARS);
+		if (!plainBody) return html;
+		const translatedText = await this.translateText(c, plainBody, targetLang, sourceLang);
+		if (!translatedText || this.isGarbageTranslation(plainBody, translatedText) || !this.looksTranslated(plainBody, translatedText, targetLang)) {
+			throw new BizError(t('translateEmpty'));
+		}
+		return this.wrapTranslatedHtml(translatedText);
+	},
+
+	collectTextNodes(root, out, canContinue, onAdd) {
+		const walk = (node) => {
+			if (!canContinue()) return;
+			if (node.nodeType === 3) {
+				const raw = node.textContent || '';
+				if (!raw.trim()) return;
+				const len = raw.trim().length;
+				if (!canContinue()) return;
+				out.push(node);
+				onAdd(len);
+				return;
+			}
+			if (node.nodeType !== 1) return;
+			const tag = (node.tagName || '').toUpperCase();
+			if (SKIP_TAGS.has(tag)) return;
+			if (this.isHiddenElement(node)) return;
+			for (const child of Array.from(node.childNodes || [])) {
+				walk(child);
+				if (!canContinue()) return;
+			}
+		};
+		walk(root);
+	},
+
+	isHiddenElement(node) {
+		const style = `${node.getAttribute?.('style') || ''}`.toLowerCase();
+		if (!style) return false;
+		return /display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0|mso-hide\s*:\s*all|max-height\s*:\s*0|font-size\s*:\s*0|line-height\s*:\s*0/.test(style);
+	},
+
+	isUrlLike(text) {
+		const t = String(text || '').trim();
+		if (/^https?:\/\/\S+$/i.test(t)) return true;
+		if (/^(?:www\.)\S+$/i.test(t)) return true;
+		if (/^(?:c\.gle|goo\.gl|bit\.ly|t\.co)\/\S+$/i.test(t)) return true;
+		return false;
+	},
+
+	async runPool(items, concurrency, worker) {
+		let cursor = 0;
+		const run = async () => {
+			while (cursor < items.length) {
+				const index = cursor++;
+				await worker(items[index], index);
+			}
+		};
+		await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => run()));
 	},
 
 	cleanForTranslate(text) {
@@ -97,7 +225,6 @@ const aiService = {
 			.replace(/<script[\s\S]*?<\/script>/gi, ' ')
 			.replace(/<style[\s\S]*?<\/style>/gi, ' ')
 			.replace(/<!--[\s\S]*?-->/g, ' ')
-			.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi, ' ')
 			.replace(/<[^>]+>/g, ' ')
 			.replace(/&nbsp;/gi, ' ')
 			.replace(/&amp;/gi, '&')
@@ -136,25 +263,18 @@ const aiService = {
 
 		const chunks = this.splitText(trimmed, MAX_CHUNK_CHARS);
 		const parts = new Array(chunks.length);
-		let cursor = 0;
-		const concurrency = Math.min(2, chunks.length);
-
-		const worker = async () => {
-			while (cursor < chunks.length) {
-				const index = cursor++;
-				parts[index] = await this.translateOneChunk(c, chunks[index], from, to);
-			}
-		};
-
-		await Promise.all(Array.from({ length: concurrency }, () => worker()));
+		await this.runPool(chunks.map((chunk, index) => ({ chunk, index })), Math.min(2, chunks.length), async (item) => {
+			parts[item.index] = await this.translateOneChunk(c, item.chunk, from, to);
+		});
 		return parts.filter(Boolean).join('\n\n').trim() || trimmed;
 	},
 
-	async translateOneChunk(c, chunk, from, to) {
+	async translateOneChunk(c, chunk, sourceLang, targetLang) {
+		const from = this.normalizeLang(sourceLang);
+		const to = this.normalizeLang(targetLang);
 		const clean = this.cleanForTranslate(chunk);
 		if (!clean) return '';
 
-		// 优先用 chat：对邮件段落更稳；m2m 遇到噪声容易重复「您好」
 		let translated = await this.translateWithChat(c, clean, to);
 		if (this.isGarbageTranslation(clean, translated) || !this.looksTranslated(clean, translated, to)) {
 			translated = await this.translateWithM2m(c, clean, from, to);
@@ -163,7 +283,7 @@ const aiService = {
 			translated = await this.translateWithChat(c, clean, to, true);
 		}
 		if (this.isGarbageTranslation(clean, translated) || !this.looksTranslated(clean, translated, to)) {
-			return clean;
+			return '';
 		}
 		return this.cleanTranslatedOutput(translated);
 	},
@@ -246,7 +366,12 @@ const aiService = {
 		const dst = String(translated || '').trim();
 		if (!dst || dst === src) return false;
 		if (this.isGarbageTranslation(src, dst)) return false;
-		if (targetLang === 'zh') return /[\u4E00-\u9FFF]/.test(dst);
+		if (targetLang === 'zh') {
+			const han = (dst.match(/[\u4E00-\u9FFF]/g) || []).length;
+			const latin = (dst.match(/[A-Za-z]/g) || []).length;
+			// 允许保留品牌名，但中文要明显占优或至少有一定数量
+			return han >= 4 && han >= latin * 0.35;
+		}
 		if (targetLang === 'ja') return /[\u3040-\u30FF\u4E00-\u9FFF]/.test(dst);
 		if (targetLang === 'ko') return /[\uAC00-\uD7AF]/.test(dst);
 		return /[A-Za-z]/.test(dst);
@@ -275,9 +400,7 @@ const aiService = {
 			if (cut < maxLen * 0.35) cut = rest.lastIndexOf('? ', maxLen);
 			if (cut < maxLen * 0.35) cut = rest.lastIndexOf(' ', maxLen);
 			if (cut < maxLen * 0.35) cut = maxLen;
-			const end = rest[cut] === '.' || rest[cut] === '。' || rest[cut] === '!' || rest[cut] === '?'
-				? cut + 1
-				: cut;
+			const end = '.。!?'.includes(rest[cut]) ? cut + 1 : cut;
 			chunks.push(rest.slice(0, end).trim());
 			rest = rest.slice(end).trimStart();
 		}
