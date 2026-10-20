@@ -1,31 +1,38 @@
 <template>
-  <div :class="accountShow && hasPerm('account:query') ? 'main-box-show' : 'main-box-hide'">
-    <div :class="accountShow && hasPerm('account:query') ? 'block-show' : 'block-hide'" @click="uiStore.accountShow = false"></div>
-    <account  :class="accountShow && hasPerm('account:query') ? 'show' : 'hide'" />
-    <router-view class="main-view" v-slot="{ Component,route }">
-      <keep-alive :include="['email','all-email','send','sys-setting','star','spam','user','role','analysis','reg-key','draft']">
+  <div :class="accountVisible ? 'main-box-show' : 'main-box-hide'">
+    <account v-show="accountVisible" class="account-pane" />
+    <router-view class="main-view" v-slot="{ Component, route }">
+      <keep-alive :include="['email','all-email','send','sys-setting','star','spam','user','role','analysis','reg-key','draft','setting']">
         <component :is="Component" :key="route.name"/>
       </keep-alive>
     </router-view>
+    <Teleport to="body">
+      <div
+          v-if="accountVisible && isMobile"
+          class="account-mask"
+          @click="uiStore.accountShow = false"
+      ></div>
+    </Teleport>
   </div>
 </template>
 <script setup>
 import account from '@/layout/account/index.vue'
 import {useUiStore} from "@/store/ui.js";
 import {useSettingStore} from "@/store/setting.js";
-import {computed, onBeforeUnmount, onMounted, watch} from "vue";
+import {computed, onBeforeUnmount, onMounted, ref, watch} from "vue";
 import { useRoute } from 'vue-router'
 import { hasPerm } from "@/perm/perm.js"
 
 const settingStore = useSettingStore()
 const uiStore = useUiStore();
 const route = useRoute()
-let  innerWidth =  window.innerWidth
+const isMobile = ref(window.innerWidth <= 767)
+let innerWidth = window.innerWidth
 
 let elNotification = null
 
-const accountShow = computed(() => {
-  return uiStore.accountShow && settingStore.settings.manyEmail === 0
+const accountVisible = computed(() => {
+  return uiStore.accountShow && settingStore.settings.manyEmail === 0 && hasPerm('account:query')
 })
 
 watch(() => uiStore.changeNotice, () => {
@@ -91,8 +98,9 @@ onBeforeUnmount(() => {
 })
 
 const handleResize = () => {
-  if (['content','email','send'].includes(route.meta.name)) {
-    if (innerWidth !==  window.innerWidth) {
+  isMobile.value = window.innerWidth <= 767
+  if (['content','email','send','spam'].includes(route.meta.name)) {
+    if (innerWidth !== window.innerWidth) {
       innerWidth = window.innerWidth;
       uiStore.accountShow = window.innerWidth >= 767;
     }
@@ -101,80 +109,74 @@ const handleResize = () => {
 
 </script>
 <style lang="scss" scoped>
+.account-pane {
+  grid-column: 1;
+  grid-row: 1;
+  width: 260px;
+  max-width: 260px;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  z-index: 20;
 
-.block-show {
-  position: fixed;
-  @media (max-width: 767px) {
-    position: absolute;
-    right: 0;
-    border: 0;
-    height: 100%;
-    width: 100%;
-    background: #000000;
-    opacity: 0.6;
-    z-index: 10;
-    transition: all 300ms;
-  }
-}
-
-.block-hide {
-  position: fixed;
-  pointer-events: none;
-  transition: all 300ms;
-}
-
-.show {
-  transition: all 100ms;
   @media (max-width: 767px) {
     position: fixed;
-    z-index: 100;
-    width: 260px;
+    left: 0;
+    top: 60px;
+    bottom: 0;
+    height: auto;
+    z-index: 1001;
   }
 }
-
-.hide {
-  transition: all 100ms;
-  position: fixed;
-  transform: translateX(-100%);
-  opacity: 0;
-  @media (max-width: 1024px) {
-    width: 260px;
-    z-index: 100;
-  }
-}
-
 
 .main-box-show {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   height: calc(100% - 60px);
+  position: relative;
+
   @media (max-width: 767px) {
-    grid-template-columns: 1fr;
-  }
+    grid-template-columns: minmax(0, 1fr);
 
-  > .show {
-    width: 260px;
-    max-width: 260px;
-    min-width: 0;
-    overflow: hidden;
-  }
+    > .account-pane {
+      grid-column: auto;
+      grid-row: auto;
+    }
 
-  > .main-view {
-    min-width: 0;
+    > .main-view {
+      grid-column: 1;
+      grid-row: 1;
+    }
   }
 }
 
 .main-box-hide {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   height: calc(100% - 60px);
-}
+  position: relative;
 
+  > .account-pane {
+    display: none !important;
+  }
+
+  > .main-view {
+    grid-column: 1;
+    grid-row: 1;
+  }
+}
 
 .main-view {
+  grid-column: 2;
+  grid-row: 1;
   background: var(--surface-color);
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
 }
-
 
 .navigation {
   height: 30px;
@@ -187,5 +189,18 @@ const handleResize = () => {
     background: var(--el-bg-color);
     margin-left: 5px;
   }
+}
+</style>
+
+<style lang="scss">
+.account-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 60px;
+  bottom: 0;
+  background: #000000;
+  opacity: 0.6;
+  z-index: 1000;
 }
 </style>
