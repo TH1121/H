@@ -491,6 +491,29 @@ const handleBack = () => {
   router.back()
 }
 
+const canToggleSpam = computed(() => {
+  return Number(email.value?.type) === 0 && !!email.value?.emailId
+})
+
+function toggleSpam(isSpam) {
+  if (!email.value?.emailId) return
+  emailSetSpam([email.value.emailId], isSpam, true).then(() => {
+    email.value.isSpam = isSpam
+    emailStore.deleteIds = [email.value.emailId]
+    if (isSpam) {
+      emailStore.spamScroll?.refreshList?.()
+    } else {
+      emailStore.emailScroll?.refreshList?.()
+    }
+    ElMessage({
+      message: t(isSpam ? 'markAsSpamSuccess' : 'markAsNotSpamSuccess'),
+      type: 'success',
+      plain: true,
+    })
+    router.back()
+  })
+}
+
 const handleDelete = () => {
   ElMessageBox.confirm(t('delEmailConfirm'), {
     confirmButtonText: t('confirm'),
