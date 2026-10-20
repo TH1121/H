@@ -391,8 +391,12 @@ function saveBlacklist() {
   accountSetBlacklist(account.accountId, blacklist).then(() => {
     account.blacklist = blacklist
     blacklistShow.value = false
-    emailStore.emailScroll?.refreshList()
-    emailStore.spamScroll?.refreshList()
+    if (emailStore.emailScroll && emailStore.emailScroll.refreshList) {
+      emailStore.emailScroll.refreshList()
+    }
+    if (emailStore.spamScroll && emailStore.spamScroll.refreshList) {
+      emailStore.spamScroll.refreshList()
+    }
     ElMessage({
       message: t('saveSuccessMsg'),
       type: 'success',
