@@ -60,18 +60,6 @@
         </el-button>
       </div>
     </div>
-    <div class="blacklist-setting">
-      <div class="title">{{ $t('senderBlacklist') }}</div>
-      <div class="blacklist-tip">{{ $t('senderBlacklistDesc') }}</div>
-      <el-input-tag
-          v-model="blacklistTags"
-          :placeholder="$t('senderBlacklistTagPlaceholder')"
-          @add-tag="onBlacklistAddTag"
-      />
-      <el-button type="primary" class="blacklist-save" :loading="blacklistLoading" @click="saveBlacklist">
-        {{ $t('save') }}
-      </el-button>
-    </div>
     <div class="language">
       <div class="title">{{$t('language')}}</div>
       <el-select
