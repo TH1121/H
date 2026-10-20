@@ -48,6 +48,20 @@
         </el-button>
       </div>
     </div>
+    <div class="blacklist-setting">
+      <div class="title">{{ $t('senderBlacklist') }}</div>
+      <div class="blacklist-tip">{{ $t('senderBlacklistDesc') }}</div>
+      <el-input
+          v-model="blacklistText"
+          type="textarea"
+          :rows="5"
+          :placeholder="$t('senderBlacklistPlaceholder')"
+          autocomplete="off"
+      />
+      <el-button type="primary" class="blacklist-save" :loading="blacklistLoading" @click="saveBlacklist">
+        {{ $t('save') }}
+      </el-button>
+    </div>
     <div class="language">
       <div class="title">{{$t('language')}}</div>
       <el-select
@@ -83,14 +97,17 @@ import {reactive, ref, defineOptions, computed, onMounted} from 'vue'
 import {resetPassword, userDelete, oauthBindList, oauthUnbind} from "@/request/my.js";
 import {useUserStore} from "@/store/user.js";
 import router from "@/router/index.js";
-import {accountSetName} from "@/request/account.js";
+import {accountSetName, accountSetBlacklist} from "@/request/account.js";
 import {useAccountStore} from "@/store/account.js";
+import {useEmailStore} from "@/store/email.js";
 import {useI18n} from "vue-i18n";
 import {useSettingStore} from "@/store/setting.js";
 import {Icon} from "@iconify/vue";
+import {isEmail, isDomain} from "@/utils/verify-utils.js";
 
 const { t } = useI18n()
 const accountStore = useAccountStore()
+const emailStore = useEmailStore()
 const settingStore = useSettingStore()
 const userStore = useUserStore();
 const setPwdLoading = ref(false)
@@ -99,6 +116,8 @@ const accountName = ref(null)
 const langSelect = ref(settingStore.lang)
 const oauthBinds = ref([])
 const unbindId = ref(null)
+const blacklistText = ref('')
+const blacklistLoading = ref(false)
 
 const oauthPlatforms = [
   { key: 'google', label: 'Google', icon: 'devicon:google', iconType: 'iconify' },
@@ -156,7 +175,53 @@ function unbindOauth(row) {
   }).catch(() => {})
 }
 
-onMounted(loadOauthBinds)
+function loadBlacklist() {
+  const raw = userStore.user?.account?.blacklist
+      || accountStore.currentAccount?.blacklist
+      || ''
+  blacklistText.value = String(raw)
+      .split(/[,，]/)
+      .map(s => s.trim())
+      .filter(Boolean)
+      .join('\n')
+}
+
+function saveBlacklist() {
+  if (blacklistLoading.value) return
+  const accountId = userStore.user?.account?.accountId
+  if (!accountId) return
+
+  const list = String(blacklistText.value || '')
+      .split(/[,，\n]/)
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean)
+
+  for (const item of list) {
+    if (!isEmail(item) && !isDomain(item)) {
+      ElMessage({ message: t('notEmailMsg'), type: 'error', plain: true })
+      return
+    }
+  }
+
+  blacklistLoading.value = true
+  const blacklist = list.join(',')
+  accountSetBlacklist(accountId, blacklist).then(() => {
+    if (userStore.user.account) userStore.user.account.blacklist = blacklist
+    if (accountStore.currentAccount?.accountId === accountId) {
+      accountStore.currentAccount.blacklist = blacklist
+    }
+    emailStore.emailScroll?.refreshList()
+    emailStore.spamScroll?.refreshList()
+    ElMessage({ message: t('saveSuccessMsg'), type: 'success', plain: true })
+  }).finally(() => {
+    blacklistLoading.value = false
+  })
+}
+
+onMounted(() => {
+  loadOauthBinds()
+  loadBlacklist()
+})
 
 defineOptions({
   name: 'setting'
@@ -303,6 +368,22 @@ function submitPwd() {
   .title {
     font-size: 18px;
     font-weight: bold;
+  }
+
+  .blacklist-setting {
+    margin-bottom: 40px;
+    max-width: 480px;
+
+    .blacklist-tip {
+      margin: 10px 0 12px;
+      font-size: 13px;
+      color: var(--regular-text-color);
+      line-height: 1.5;
+    }
+
+    .blacklist-save {
+      margin-top: 12px;
+    }
   }
 
   .container {

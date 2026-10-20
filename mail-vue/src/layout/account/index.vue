@@ -17,6 +17,7 @@
               <Icon @click="setAllReceive(item)" v-else icon="flat-color-icons:folder" width="22" height="22" color="#23c4f1" />
             </div>
             <div class="settings" @click.stop>
+              <span class="blacklist-btn" @click.stop="openBlacklist(item)">{{ $t('senderBlacklist') }}</span>
               <Icon icon="fluent-color:clipboard-24" width="22" height="22" @click.stop="copyAccount(item.email)"/>
               <el-dropdown trigger="click" @command="(cmd) => handleAccountCommand(cmd, item, index)">
                 <span class="setting-trigger" @click.stop>
@@ -124,8 +125,14 @@
         </el-button>
       </div>
     </el-dialog>
-    <el-dialog v-model="blacklistShow" :title="$t('senderBlacklist')" width="420">
-      <div class="container blacklist-box">
+    <el-dialog
+        v-model="blacklistShow"
+        :title="$t('senderBlacklist')"
+        width="420"
+        append-to-body
+        destroy-on-close
+    >
+      <div class="blacklist-box">
         <div class="blacklist-desc">{{ $t('senderBlacklistDesc') }}</div>
         <el-input
             v-model="blacklistText"
@@ -134,7 +141,7 @@
             :placeholder="$t('senderBlacklistPlaceholder')"
             autocomplete="off"
         />
-        <el-button class="btn" type="primary" @click="saveBlacklist" :loading="blacklistLoading"
+        <el-button class="blacklist-save" type="primary" @click="saveBlacklist" :loading="blacklistLoading"
         >{{ $t('save') }}
         </el-button>
       </div>
@@ -645,13 +652,6 @@ path[fill="#ffdda1"] {
     }
   }
 
-  .blacklist-desc {
-    font-size: 13px;
-    color: var(--secondary-text-color);
-    margin-bottom: 12px;
-    line-height: 1.5;
-  }
-
   .btn {
     width: 100%;
     margin-top: 15px;
@@ -692,6 +692,14 @@ path[fill="#ffdda1"] {
         align-items: center;
         cursor: pointer;
         outline: none;
+      }
+
+      .blacklist-btn {
+        font-size: 12px;
+        color: var(--el-color-primary);
+        cursor: pointer;
+        white-space: nowrap;
+        user-select: none;
       }
 
       .send-email {
@@ -762,4 +770,20 @@ path[fill="#ffdda1"] {
   position: fixed;
 }
 
+</style>
+
+<style lang="scss">
+.blacklist-box {
+  .blacklist-desc {
+    font-size: 13px;
+    color: var(--secondary-text-color);
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+
+  .blacklist-save {
+    width: 100%;
+    margin-top: 15px;
+  }
+}
 </style>
