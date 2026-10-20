@@ -33,8 +33,22 @@ const dbInit = {
 		await this.v3_2DB(c);
 		await this.v3_3DB(c);
 		await this.v3_4DB(c);
+		await this.v3_5DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
+	},
+
+	async v3_5DB(c) {
+		try {
+			await c.env.db.batch([
+				c.env.db.prepare(`ALTER TABLE account ADD COLUMN blacklist TEXT NOT NULL DEFAULT '';`),
+				c.env.db.prepare(`ALTER TABLE email ADD COLUMN is_spam INTEGER NOT NULL DEFAULT 0;`),
+				c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_email_spam ON email(user_id, type, is_del, is_spam, email_id)`),
+				c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_email_account_spam ON email(account_id, is_spam, email_id)`),
+			]);
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
 	},
 
 	async v3_4DB(c) {

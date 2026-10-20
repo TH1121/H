@@ -28,7 +28,7 @@ const emailService = {
 
 	async list(c, params, userId) {
 
-		let { emailId, type, accountId, size, timeSort, allReceive, full, address, startTime, endTime, unread, opened } = params;
+		let { emailId, type, accountId, size, timeSort, allReceive, full, address, startTime, endTime, unread, opened, spam } = params;
 
 		size = Number(size);
 		type = Number(type);
@@ -65,7 +65,7 @@ const emailService = {
 			allReceive = accountRow.allReceive;
 		}
 
-		const filterOpts = { userId, accountId, type, allReceive, emailId, timeSort, address, startTime, endTime, unread, opened };
+		const filterOpts = { userId, accountId, type, allReceive, emailId, timeSort, address, startTime, endTime, unread, opened, spam };
 		const filters = this.emailListFilters(filterOpts);
 		const countFilters = this.emailListFilters({ ...filterOpts, withCursor: false });
 		const columns = full ? emailListColumns : emailBriefColumns;
@@ -156,7 +156,7 @@ const emailService = {
 		return list;
 	},
 
-	emailListFilters({ userId, accountId, type, allReceive, emailId, timeSort, address, startTime, endTime, unread, opened, withCursor = true }) {
+	emailListFilters({ userId, accountId, type, allReceive, emailId, timeSort, address, startTime, endTime, unread, opened, spam, withCursor = true }) {
 		const conditions = [
 			eq(email.userId, userId),
 			eq(email.type, type),
@@ -166,14 +166,14 @@ const emailService = {
 		if (!allReceive) {
 			conditions.push(eq(email.accountId, accountId));
 		}
-		this.appendListExtraFilters(conditions, { type, address, startTime, endTime, unread, opened });
+		this.appendListExtraFilters(conditions, { type, address, startTime, endTime, unread, opened, spam });
 		if (withCursor && emailId) {
 			conditions.push(timeSort ? gt(email.emailId, emailId) : lt(email.emailId, emailId));
 		}
 		return conditions;
 	},
 
-	appendListExtraFilters(conditions, { type, address, startTime, endTime, unread, opened }) {
+	appendListExtraFilters(conditions, { type, address, startTime, endTime, unread, opened, spam }) {
 		const addr = typeof address === 'string' ? address.trim() : '';
 		if (addr) {
 			const like = addr + '%';
@@ -214,9 +214,15 @@ const emailService = {
 		if (opened === 0 || opened === 1 || opened === '0' || opened === '1') {
 			conditions.push(eq(email.opened, Number(opened)));
 		}
+		// spam: 1=仅垃圾, all=含垃圾, 其他默认排除垃圾
+		if (spam === '1' || spam === 1 || type === 'spam') {
+			conditions.push(eq(email.isSpam, emailConst.isSpam.SPAM));
+		} else if (spam !== 'all') {
+			conditions.push(eq(email.isSpam, emailConst.isSpam.NORMAL));
+		}
 	},
 
-	allEmailListFilters({ emailId, name, subject, accountEmail, userEmail, type, timeSort, address, startTime, endTime, unread, opened, withCursor = true }) {
+	allEmailListFilters({ emailId, name, subject, accountEmail, userEmail, type, timeSort, address, startTime, endTime, unread, opened, spam, withCursor = true }) {
 		const conditions = [];
 
 		if (type === 'send') {
@@ -224,6 +230,10 @@ const emailService = {
 		}
 
 		if (type === 'receive') {
+			conditions.push(eq(email.type, emailConst.type.RECEIVE));
+		}
+
+		if (type === 'spam') {
 			conditions.push(eq(email.type, emailConst.type.RECEIVE));
 		}
 
@@ -256,7 +266,7 @@ const emailService = {
 			conditions.push(sql`${email.subject} COLLATE NOCASE LIKE ${subject + '%'}`);
 		}
 
-		this.appendListExtraFilters(conditions, { type, address, startTime, endTime, unread, opened });
+		this.appendListExtraFilters(conditions, { type, address, startTime, endTime, unread, opened, spam });
 
 		if (withCursor && emailId) {
 			conditions.push(timeSort ? gt(email.emailId, emailId) : lt(email.emailId, emailId));
@@ -888,13 +898,17 @@ const emailService = {
 	},
 
 	async latest(c, params, userId) {
-		let { emailId, accountId, allReceive } = params;
+		let { emailId, accountId, allReceive, spam } = params;
 		allReceive = Number(allReceive);
 
 		if (isNaN(allReceive)) {
 			let accountRow = await accountService.selectById(c, accountId);
 			allReceive = accountRow.allReceive;
 		}
+
+		const spamCond = (spam === '1' || spam === 1)
+			? eq(email.isSpam, emailConst.isSpam.SPAM)
+			: eq(email.isSpam, emailConst.isSpam.NORMAL);
 
 		const list = await orm(c).select({ ...emailListColumns }).from(email)
 			.innerJoin(
@@ -908,7 +922,8 @@ const emailService = {
 					eq(email.isDel, isDel.NORMAL),
 					eq(account.isDel, isDel.NORMAL),
 					allReceive ? undefined : eq(email.accountId, accountId),
-					eq(email.type, emailConst.type.RECEIVE)
+					eq(email.type, emailConst.type.RECEIVE),
+					spamCond,
 				))
 			.orderBy(desc(email.emailId))
 			.limit(20);
@@ -1037,7 +1052,7 @@ const emailService = {
 
 	async allList(c, params) {
 
-		let { emailId, size, name, subject, accountEmail, userEmail, type, timeSort, full, address, startTime, endTime, unread, opened } = params;
+		let { emailId, size, name, subject, accountEmail, userEmail, type, timeSort, full, address, startTime, endTime, unread, opened, spam } = params;
 
 		size = Number(size);
 		emailId = Number(emailId) || 0;
@@ -1062,7 +1077,7 @@ const emailService = {
 
 		full = full === 1;
 
-		const filterOpts = { emailId, name, subject, accountEmail, userEmail, type, timeSort, address, startTime, endTime, unread, opened };
+		const filterOpts = { emailId, name, subject, accountEmail, userEmail, type, timeSort, address, startTime, endTime, unread, opened, spam };
 		const filters = this.allEmailListFilters(filterOpts);
 		const countFilters = this.allEmailListFilters({ ...filterOpts, withCursor: false });
 		const columns = full ? emailListColumns : emailBriefColumns;
@@ -1119,14 +1134,21 @@ const emailService = {
 
 	async allEmailLatest(c, params) {
 
-		const { emailId } = params;
+		const { emailId, type, spam } = params;
+
+		const spamCond = (spam === '1' || spam === 1 || type === 'spam')
+			? eq(email.isSpam, emailConst.isSpam.SPAM)
+			: spam === 'all'
+				? undefined
+				: eq(email.isSpam, emailConst.isSpam.NORMAL);
 
 		let list = await orm(c).select({ ...emailListColumns, userEmail: user.email }).from(email)
 			.leftJoin(user, eq(email.userId, user.userId))
 			.where(
 				and(
 					gt(email.emailId, emailId),
-					eq(email.type, emailConst.type.RECEIVE)
+					eq(email.type, emailConst.type.RECEIVE),
+					spamCond,
 				))
 			.orderBy(desc(email.emailId))
 			.limit(20);
@@ -1300,7 +1322,37 @@ const emailService = {
 		if (sendIds.length > 0) {
 			await orm(c).update(email).set({ opened: emailConst.opened.OPENED }).where(inArray(email.emailId, sendIds)).run();
 		}
-	}
+	},
+
+	async refreshAccountSpam(c, accountId, blacklist) {
+		const list = Array.isArray(blacklist)
+			? blacklist
+			: accountService.normalizeBlacklist(blacklist);
+
+		await orm(c).update(email).set({ isSpam: emailConst.isSpam.NORMAL }).where(
+			and(
+				eq(email.accountId, accountId),
+				eq(email.type, emailConst.type.RECEIVE),
+			)
+		).run();
+
+		if (!list.length) return;
+
+		const matchConds = list.map(item => {
+			if (item.includes('@')) {
+				return sql`lower(${email.sendEmail}) = ${item}`;
+			}
+			return sql`lower(${email.sendEmail}) LIKE ${'%@' + item}`;
+		});
+
+		await orm(c).update(email).set({ isSpam: emailConst.isSpam.SPAM }).where(
+			and(
+				eq(email.accountId, accountId),
+				eq(email.type, emailConst.type.RECEIVE),
+				or(...matchConds),
+			)
+		).run();
+	},
 };
 
 export default emailService;

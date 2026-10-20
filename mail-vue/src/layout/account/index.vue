@@ -25,6 +25,7 @@
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item v-if="hasPerm('email:send')" @click="openSetName(item)">{{ $t('rename') }}</el-dropdown-item>
+                    <el-dropdown-item @click="openBlacklist(item)">{{ $t('senderBlacklist') }}</el-dropdown-item>
                     <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId" @click="setAsTop(item, index)">{{ $t('pin') }}</el-dropdown-item>
                     <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId && hasPerm('account:delete')"
                                       @click="remove(item)">{{ $t('delete') }}
@@ -123,6 +124,21 @@
         </el-button>
       </div>
     </el-dialog>
+    <el-dialog v-model="blacklistShow" :title="$t('senderBlacklist')" width="420">
+      <div class="container blacklist-box">
+        <div class="blacklist-desc">{{ $t('senderBlacklistDesc') }}</div>
+        <el-input
+            v-model="blacklistText"
+            type="textarea"
+            :rows="6"
+            :placeholder="$t('senderBlacklistPlaceholder')"
+            autocomplete="off"
+        />
+        <el-button class="btn" type="primary" @click="saveBlacklist" :loading="blacklistLoading"
+        >{{ $t('save') }}
+        </el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 <script setup>
@@ -134,10 +150,11 @@ import {
   accountDelete,
   accountSetName,
   accountSetAllReceive,
-  accountSetAsTop
+  accountSetAsTop,
+  accountSetBlacklist
 } from "@/request/account.js";
 import {sleep} from "@/utils/time-utils.js"
-import {isEmail} from "@/utils/verify-utils.js";
+import {isEmail, isDomain} from "@/utils/verify-utils.js";
 import {useSettingStore} from "@/store/setting.js";
 import {useAccountStore} from "@/store/account.js";
 import {useEmailStore} from "@/store/email.js";
@@ -162,6 +179,9 @@ const verifyShow = ref(false)
 const setNameShow = ref(false)
 const setNameLoading = ref(false)
 const accountName = ref(null)
+const blacklistShow = ref(false)
+const blacklistLoading = ref(false)
+const blacklistText = ref('')
 const addRef = ref({})
 const scrollbarRef = ref({})
 let account = null
@@ -294,8 +314,54 @@ function setAllReceive(account) {
 }
 
 
-function showNullSetting(item) {
-  return !hasPerm('email:send') && !(item.accountId !== userStore.user.account.accountId && hasPerm('account:delete'))
+function showNullSetting() {
+  return false
+}
+
+function openBlacklist(accountItem) {
+  account = accountItem
+  blacklistText.value = String(accountItem.blacklist || '')
+      .split(/[,，]/)
+      .map(s => s.trim())
+      .filter(Boolean)
+      .join('\n')
+  blacklistShow.value = true
+}
+
+function saveBlacklist() {
+  if (blacklistLoading.value || !account) return
+
+  const list = String(blacklistText.value || '')
+      .split(/[,，\n]/)
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean)
+
+  for (const item of list) {
+    if (!isEmail(item) && !isDomain(item)) {
+      ElMessage({
+        message: t('notEmailMsg'),
+        type: 'error',
+        plain: true,
+      })
+      return
+    }
+  }
+
+  blacklistLoading.value = true
+  const blacklist = list.join(',')
+  accountSetBlacklist(account.accountId, blacklist).then(() => {
+    account.blacklist = blacklist
+    blacklistShow.value = false
+    emailStore.emailScroll?.refreshList()
+    emailStore.spamScroll?.refreshList()
+    ElMessage({
+      message: t('saveSuccessMsg'),
+      type: 'success',
+      plain: true,
+    })
+  }).finally(() => {
+    blacklistLoading.value = false
+  })
 }
 
 function itemBg(accountId) {
@@ -574,6 +640,13 @@ path[fill="#ffdda1"] {
       padding: 10px 0;
       color: var(--secondary-text-color);
     }
+  }
+
+  .blacklist-desc {
+    font-size: 13px;
+    color: var(--secondary-text-color);
+    margin-bottom: 12px;
+    line-height: 1.5;
   }
 
   .btn {

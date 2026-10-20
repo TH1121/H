@@ -105,6 +105,9 @@ export async function email(message, env, ctx) {
 
 		const toName = email.to.find(item => item.address === message.to)?.name || '';
 		const code = await aiService.extractCode({ env }, email, { aiCode, aiCodeFilter });
+		const isSpam = accountService.isSenderBlacklisted(account?.blacklist, email.from.address)
+			? emailConst.isSpam.SPAM
+			: emailConst.isSpam.NORMAL;
 
 		const params = {
 			toEmail: message.to,
@@ -123,6 +126,7 @@ export async function email(message, env, ctx) {
 			messageId: email.messageId,
 			userId: account ? account.userId : 0,
 			accountId: account ? account.accountId : 0,
+			isSpam,
 			isDel: isDel.DELETE,
 			status: emailConst.status.SAVING
 		};

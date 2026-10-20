@@ -278,7 +278,54 @@ const accountService = {
 		let mainSort = mainAccountRow.sort === 0 ? 2 : mainAccountRow.sort + 1;
 		await orm(c).update(account).set({ sort: mainSort }).where(eq(account.email, userRow.email )).run();
 		await orm(c).update(account).set({ sort: mainSort - 1 }).where(and(eq(account.accountId, accountId),eq(account.userId,userId))).run();
-	}
+	},
+
+	normalizeBlacklist(list) {
+		const raw = Array.isArray(list)
+			? list
+			: String(list || '').split(/[,，]/);
+		const seen = new Set();
+		const result = [];
+		for (const item of raw) {
+			const value = String(item || '').trim().toLowerCase();
+			if (!value || seen.has(value)) continue;
+			seen.add(value);
+			result.push(value);
+		}
+		return result;
+	},
+
+	isSenderBlacklisted(blacklist, sendEmail) {
+		const list = this.normalizeBlacklist(blacklist);
+		if (!list.length || !sendEmail) return false;
+		const from = String(sendEmail).trim().toLowerCase();
+		const domain = emailUtils.getDomain(from).toLowerCase();
+		return list.some(item => item === from || item === domain);
+	},
+
+	async setBlacklist(c, params, userId) {
+		const { accountId } = params;
+		const accountRow = await this.selectById(c, accountId);
+		if (!accountRow || accountRow.userId !== userId) {
+			throw new BizError(t('noUserAccount'));
+		}
+
+		const list = this.normalizeBlacklist(params.blacklist);
+		for (const item of list) {
+			if (!verifyUtils.isEmail(item) && !verifyUtils.isDomain(item)) {
+				throw new BizError(t('notEmail'));
+			}
+		}
+
+		const blacklist = list.join(',');
+		await orm(c).update(account).set({ blacklist }).where(
+			and(eq(account.accountId, accountId), eq(account.userId, userId))
+		).run();
+
+		await emailService.refreshAccountSpam(c, accountId, list);
+
+		return { accountId: Number(accountId), blacklist };
+	},
 };
 
 export default accountService;

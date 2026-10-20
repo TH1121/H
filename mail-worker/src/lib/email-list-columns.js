@@ -33,6 +33,7 @@ export const emailBriefColumns = {
 	message: email.message,
 	unread: email.unread,
 	opened: email.opened,
+	isSpam: email.isSpam,
 	createTime: email.createTime,
 	isDel: email.isDel,
 	content: sql`CASE WHEN trim(coalesce(${email.text}, '')) != '' THEN NULL ELSE ${sqlStripWhitespace(email.content)} END`.as('content'),

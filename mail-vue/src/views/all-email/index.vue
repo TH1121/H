@@ -48,8 +48,9 @@
           <el-option key="1" :label="$t('all')" value="all"/>
           <el-option key="3" :label="$t('received')" value="receive"/>
           <el-option key="2" :label="$t('sent')" value="send"/>
+          <el-option key="5" :label="$t('spam')" value="spam"/>
           <el-option key="4" :label="$t('selectDeleted')" value="delete"/>
-          <el-option key="4" :label="$t('noRecipientTitle')" value="noone"/>
+          <el-option key="6" :label="$t('noRecipientTitle')" value="noone"/>
         </el-select>
         <el-date-picker
             v-model="filterDateRange"
@@ -360,7 +361,7 @@ async function latest() {
     }
 
 
-    if (params.type !== 'receive') {
+    if (params.type !== 'receive' && params.type !== 'spam') {
       continue
     }
 
@@ -371,13 +372,14 @@ async function latest() {
     try {
 
       const curTimeSort = params.timeSort
-      let list = await allEmailLatest(latestId)
+      const curType = params.type
+      let list = await allEmailLatest(latestId, params.type)
 
       if (list.length === 0) {
         continue
       }
 
-      if (params.type !== 'receive') {
+      if (params.type !== curType) {
         continue
       }
 

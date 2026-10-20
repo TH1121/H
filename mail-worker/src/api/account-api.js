@@ -32,3 +32,8 @@ app.put('/account/setAsTop', async (c) => {
 	await accountService.setAsTop(c, await c.req.json(), userContext.getUserId(c));
 	return c.json(result.ok());
 });
+
+app.put('/account/setBlacklist', async (c) => {
+	const data = await accountService.setBlacklist(c, await c.req.json(), userContext.getUserId(c));
+	return c.json(result.ok(data));
+});

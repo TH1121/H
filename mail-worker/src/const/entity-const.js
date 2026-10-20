@@ -58,6 +58,10 @@ export const emailConst = {
 	opened: {
 		UNOPENED: 0,
 		OPENED: 1
+	},
+	isSpam: {
+		NORMAL: 0,
+		SPAM: 1
 	}
 }
 
