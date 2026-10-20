@@ -110,9 +110,10 @@ const handleResize = () => {
 <style lang="scss" scoped>
 .main-wrap {
   display: flex;
+  flex: 1;
   width: 100%;
-  height: calc(100% - 60px);
-  min-height: 400px;
+  min-height: 0;
+  height: 100%;
   overflow: hidden;
   background: var(--surface-color);
 }
