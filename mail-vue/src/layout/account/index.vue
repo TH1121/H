@@ -11,15 +11,26 @@
       </div>
       <div class="blacklist-panel-email">{{ account?.email }}</div>
       <div class="blacklist-panel-desc">{{ $t('senderBlacklistDesc') }}</div>
-      <el-input-tag
-          v-model="blacklistTags"
-          class="blacklist-tags"
-          :placeholder="$t('senderBlacklistTagPlaceholder')"
-          @add-tag="onBlacklistAddTag"
-      />
-      <el-button class="blacklist-save" type="primary" :loading="blacklistLoading" @click="saveBlacklist">
-        {{ $t('save') }}
-      </el-button>
+      <div class="blacklist-add-row">
+        <input
+            v-model="blacklistInput"
+            class="blacklist-input"
+            type="text"
+            :placeholder="$t('senderBlacklistTagPlaceholder')"
+            @keyup.enter="addBlacklistItem"
+        />
+        <button type="button" class="blacklist-add-btn" @click="addBlacklistItem">{{ $t('add') }}</button>
+      </div>
+      <div class="blacklist-tag-list">
+        <div v-for="(item, idx) in blacklistTags" :key="item + idx" class="blacklist-tag">
+          <span class="blacklist-tag-text">{{ item }}</span>
+          <span class="blacklist-tag-remove" @click="removeBlacklistItem(idx)">×</span>
+        </div>
+        <div v-if="!blacklistTags.length" class="blacklist-empty">{{ $t('senderBlacklistEmpty') }}</div>
+      </div>
+      <button type="button" class="blacklist-save" :disabled="blacklistLoading" @click="saveBlacklist">
+        {{ blacklistLoading ? '...' : $t('save') }}
+      </button>
     </div>
     <el-scrollbar v-else class="scrollbar" ref="scrollbarRef">
       <div v-infinite-scroll="getAccountList" :infinite-scroll-distance="600" :infinite-scroll-immediate="false">
@@ -55,7 +66,6 @@
           </div>
         </el-card>
 
-        <!-- Initial Loading Skeleton -->
         <template v-if="loading">
           <el-skeleton v-for="i in skeletonRows" :key="i" animated>
             <template #template>
@@ -70,7 +80,6 @@
           </el-skeleton>
         </template>
 
-        <!-- Follow Loading Skeleton -->
         <template v-if="accounts.length > 0 && !noLoading">
           <el-skeleton animated>
             <template #template>
@@ -94,7 +103,7 @@
       </div>
 
     </el-scrollbar>
-    <el-dialog v-model="showAdd" :title="$t('addAccount')">
+    <el-dialog v-model="showAdd" :title="$t('addAccount')" width="400px" append-to-body>
       <div class="container">
         <el-input v-model="addForm.email" ref="addRef" type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="submit">
           <template #append>
@@ -133,7 +142,7 @@
         <span style="font-size: 12px;color: #F56C6C" v-if="botJsError">{{ $t('verifyModuleFailed') }}</span>
       </div>
     </el-dialog>
-    <el-dialog v-model="setNameShow" :title="$t('changeUserName')">
+    <el-dialog v-model="setNameShow" :title="$t('changeUserName')" width="400px" append-to-body>
       <div class="container">
         <el-input v-model="accountName" type="text" :placeholder="$t('username')" autocomplete="off" @keyup.enter="setName">
         </el-input>
@@ -185,6 +194,7 @@ const accountName = ref(null)
 const blacklistShow = ref(false)
 const blacklistLoading = ref(false)
 const blacklistTags = ref([])
+const blacklistInput = ref('')
 const addRef = ref({})
 const scrollbarRef = ref({})
 let account = null
@@ -223,22 +233,12 @@ const openSelect = () => {
   mySelect.value.toggleMenu()
 }
 
-window.onTurnstileError = (e) => {
-  if (verifyErrorCount >= 4) {
-    return
+window.onTurnstileError = () => {
+  verifyErrorCount ++
+  if (verifyErrorCount > 2) {
+    botJsError.value = true
   }
-  verifyErrorCount++
-  console.warn('人机验加载失败', e)
-  setTimeout(() => {
-    nextTick(() => {
-      if (!turnstileId) {
-        turnstileId = window.turnstile.render('.add-email-turnstile')
-      } else {
-        window.turnstile.reset(turnstileId);
-      }
-    })
-  }, 1500)
-};
+}
 
 window.onTurnstileSuccess = (token) => {
   verifyToken = token;
@@ -326,6 +326,7 @@ function handleAccountCommand(command, accountItem, index) {
 
 function openBlacklist(accountItem) {
   account = accountItem
+  blacklistInput.value = ''
   blacklistTags.value = String(accountItem.blacklist || '')
       .split(/[,，]/)
       .map(s => s.trim().toLowerCase())
@@ -335,20 +336,32 @@ function openBlacklist(accountItem) {
 
 function closeBlacklist() {
   blacklistShow.value = false
+  blacklistInput.value = ''
 }
 
-function onBlacklistAddTag(val) {
+function addBlacklistItem() {
   const items = Array.from(new Set(
-      String(val || '').split(/[,，\s]+/).map(item => item.trim().toLowerCase()).filter(Boolean)
+      String(blacklistInput.value || '')
+          .split(/[,，\s]+/)
+          .map(item => item.trim().toLowerCase())
+          .filter(Boolean)
   ))
-  blacklistTags.value.splice(blacklistTags.value.length - 1, 1)
-  items.forEach(item => {
-    if ((isEmail(item) || isDomain(item)) && !blacklistTags.value.includes(item)) {
-      blacklistTags.value.push(item)
-    } else if (!isEmail(item) && !isDomain(item)) {
+  if (!items.length) return
+
+  for (const item of items) {
+    if (!isEmail(item) && !isDomain(item)) {
       ElMessage({ message: t('notEmailMsg'), type: 'error', plain: true })
+      return
     }
-  })
+    if (!blacklistTags.value.includes(item)) {
+      blacklistTags.value.push(item)
+    }
+  }
+  blacklistInput.value = ''
+}
+
+function removeBlacklistItem(index) {
+  blacklistTags.value.splice(index, 1)
 }
 
 function saveBlacklist() {
@@ -465,40 +478,46 @@ async function copyAccount(account) {
     })
   } catch (err) {
     console.error(`${t('copyFailMsg')}:`, err);
-    ElMessage({
-      message: t('copyFailMsg'),
-      type: 'error',
-      plain: true,
-    })
   }
 }
 
+
 function getAccountList() {
 
-  if (loading.value || followLoading.value || noLoading.value) return;
-
-  if (accounts.length === 0) {
-    loading.value = true
-  } else {
-    followLoading.value = true
+  if (followLoading.value || noLoading.value ) {
+    return
   }
 
-  let start = Date.now();
+  if (first) {
+    loading.value = true
+    getSkeletonRows()
+  }
 
-  const accountId = accounts.length > 0 ? accounts.at(-1).accountId : 0;
-  const lastSort = accounts.length > 0 ? accounts.at(-1).sort : null;
+  followLoading.value = true
+  accountList(queryParams.accountId, queryParams.size, queryParams.lastSort).then(async list => {
 
-  accountList(accountId, queryParams.size, lastSort).then(async list => {
-
-    let end = Date.now();
-    let duration = end - start;
-    if (duration < 300) {
-      await sleep(300 - duration)
+    if (list.length === 0) {
+      noLoading.value = true
+      loading.value = false
+      followLoading.value = false
+      return
     }
+
+    queryParams.accountId = list.at(-1).accountId
+    queryParams.lastSort = list.at(-1).sort
 
     if (list.length < queryParams.size) {
       noLoading.value = true
     }
+
+    if (!first) {
+      await sleep(300)
+    }
+
+    if (accounts.length === 0) {
+      accountStore.currentAccountId = list[0].accountId
+    }
+
     if (accounts.length === 0) {
       accountStore.currentAccount = list[0]
     }
@@ -583,21 +602,18 @@ function submit() {
       type: "success",
       plain: true
     })
-    verifyShow.value = false
     showAdd.value = false
-    userStore.refreshUserInfo()
-  }).catch(res => {
-    if (res.code === 400) {
-      verifyToken = ''
-      if (turnstileId) {
-        window.turnstile.reset(turnstileId)
-      } else {
-        nextTick(() => {
-          turnstileId = window.turnstile.render('.add-email-turnstile')
-        })
-      }
-      verifyShow.value = true
+    verifyShow.value = false
+  }).catch(() => {
+    verifyToken = ''
+    if (turnstileId) {
+      window.turnstile.reset(turnstileId)
+    } else {
+      nextTick(() => {
+        turnstileId = window.turnstile.render('.add-email-turnstile')
+      })
     }
+    verifyShow.value = true
     addLoading.value = false
   })
 }
@@ -609,11 +625,14 @@ path[fill="#ffdda1"] {
 </style>
 <style scoped lang="scss">
 .account-box {
-
   border-right: 1px solid var(--light-border) !important;
   background-color: var(--surface-color);
   height: 100%;
+  width: 100%;
+  max-width: 260px;
+  min-width: 0;
   overflow: hidden;
+  box-sizing: border-box;
 
   .head-opt {
     display: flex;
@@ -633,10 +652,6 @@ path[fill="#ffdda1"] {
 
     .add {
       margin-left: 2px;
-    }
-
-    .head-opt:not(.add) .refresh {
-      margin-left: 5px;
     }
   }
 
@@ -696,7 +711,8 @@ path[fill="#ffdda1"] {
       .settings {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
+        min-width: 0;
       }
 
       .setting-trigger {
@@ -735,15 +751,18 @@ path[fill="#ffdda1"] {
 
   .blacklist-panel {
     height: calc(100% - 38px);
-    padding: 14px 12px;
-    overflow: auto;
+    width: 100%;
+    max-width: 260px;
+    padding: 12px;
+    overflow-x: hidden;
+    overflow-y: auto;
     box-sizing: border-box;
 
     .blacklist-panel-head {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
 
     .blacklist-back {
@@ -757,7 +776,7 @@ path[fill="#ffdda1"] {
     }
 
     .blacklist-panel-email {
-      font-size: 13px;
+      font-size: 12px;
       color: var(--secondary-text-color);
       margin-bottom: 8px;
       word-break: break-all;
@@ -767,16 +786,95 @@ path[fill="#ffdda1"] {
       font-size: 12px;
       color: var(--secondary-text-color);
       line-height: 1.5;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
 
-    .blacklist-tags {
-      width: 100%;
+    .blacklist-add-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .blacklist-input {
+      flex: 1;
+      min-width: 0;
+      height: 32px;
+      padding: 0 8px;
+      border: 1px solid var(--light-border);
+      border-radius: 6px;
+      background: var(--el-bg-color);
+      color: var(--el-text-color-primary);
+      font-size: 12px;
+      outline: none;
+      box-sizing: border-box;
+    }
+
+    .blacklist-add-btn {
+      flex-shrink: 0;
+      height: 32px;
+      padding: 0 10px;
+      border: none;
+      border-radius: 6px;
+      background: var(--el-color-primary);
+      color: #fff;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .blacklist-tag-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+      min-height: 40px;
+    }
+
+    .blacklist-tag {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: var(--el-bg-color);
+      border: 1px solid var(--light-border);
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    .blacklist-tag-text {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .blacklist-tag-remove {
+      cursor: pointer;
+      flex-shrink: 0;
+      font-size: 16px;
+      line-height: 1;
+      color: var(--secondary-text-color);
+    }
+
+    .blacklist-empty {
+      font-size: 12px;
+      color: var(--secondary-text-color);
+      padding: 8px 0;
     }
 
     .blacklist-save {
       width: 100%;
-      margin-top: 14px;
+      height: 36px;
+      border: none;
+      border-radius: 6px;
+      background: var(--el-color-primary);
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .blacklist-save:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
   }
 }
@@ -791,15 +889,6 @@ path[fill="#ffdda1"] {
   padding: 0 !important;
   padding-left: 8px !important;
   background: var(--el-bg-color);
-}
-
-:deep(.el-dialog) {
-  width: 400px !important;
-  @media (max-width: 440px) {
-    width: calc(100% - 40px) !important;
-    margin-right: 20px !important;
-    margin-left: 20px !important;
-  }
 }
 
 .select {

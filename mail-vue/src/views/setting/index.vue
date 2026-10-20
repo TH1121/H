@@ -3,11 +3,23 @@
     <div class="blacklist-setting">
       <div class="title">{{ $t('senderBlacklist') }}</div>
       <div class="blacklist-tip">{{ $t('senderBlacklistDesc') }}</div>
-      <el-input-tag
-          v-model="blacklistTags"
-          :placeholder="$t('senderBlacklistTagPlaceholder')"
-          @add-tag="onBlacklistAddTag"
-      />
+      <div class="blacklist-add-row">
+        <input
+            v-model="blacklistInput"
+            class="blacklist-input"
+            type="text"
+            :placeholder="$t('senderBlacklistTagPlaceholder')"
+            @keyup.enter="addBlacklistItem"
+        />
+        <el-button type="primary" @click="addBlacklistItem">{{ $t('add') }}</el-button>
+      </div>
+      <div class="blacklist-tag-list">
+        <div v-for="(item, idx) in blacklistTags" :key="item + idx" class="blacklist-tag">
+          <span>{{ item }}</span>
+          <span class="blacklist-tag-remove" @click="removeBlacklistItem(idx)">×</span>
+        </div>
+        <div v-if="!blacklistTags.length" class="blacklist-empty">{{ $t('senderBlacklistEmpty') }}</div>
+      </div>
       <el-button type="primary" class="blacklist-save" :loading="blacklistLoading" @click="saveBlacklist">
         {{ $t('save') }}
       </el-button>
@@ -115,6 +127,7 @@ const langSelect = ref(settingStore.lang)
 const oauthBinds = ref([])
 const unbindId = ref(null)
 const blacklistTags = ref([])
+const blacklistInput = ref('')
 const blacklistLoading = ref(false)
 
 const oauthPlatforms = [
@@ -183,18 +196,28 @@ function loadBlacklist() {
       .filter(Boolean)
 }
 
-function onBlacklistAddTag(val) {
+function addBlacklistItem() {
   const items = Array.from(new Set(
-      String(val || '').split(/[,，\s]+/).map(item => item.trim().toLowerCase()).filter(Boolean)
+      String(blacklistInput.value || '')
+          .split(/[,，\s]+/)
+          .map(item => item.trim().toLowerCase())
+          .filter(Boolean)
   ))
-  blacklistTags.value.splice(blacklistTags.value.length - 1, 1)
-  items.forEach(item => {
-    if ((isEmail(item) || isDomain(item)) && !blacklistTags.value.includes(item)) {
-      blacklistTags.value.push(item)
-    } else if (!isEmail(item) && !isDomain(item)) {
+  if (!items.length) return
+  for (const item of items) {
+    if (!isEmail(item) && !isDomain(item)) {
       ElMessage({ message: t('notEmailMsg'), type: 'error', plain: true })
+      return
     }
-  })
+    if (!blacklistTags.value.includes(item)) {
+      blacklistTags.value.push(item)
+    }
+  }
+  blacklistInput.value = ''
+}
+
+function removeBlacklistItem(index) {
+  blacklistTags.value.splice(index, 1)
 }
 
 function saveBlacklist() {
@@ -395,8 +418,56 @@ function submitPwd() {
       line-height: 1.5;
     }
 
+    .blacklist-add-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .blacklist-input {
+      flex: 1;
+      min-width: 0;
+      height: 32px;
+      padding: 0 10px;
+      border: 1px solid var(--light-border);
+      border-radius: 6px;
+      background: var(--surface-color);
+      color: var(--el-text-color-primary);
+      outline: none;
+    }
+
+    .blacklist-tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      min-height: 32px;
+    }
+
+    .blacklist-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: var(--surface-color);
+      border: 1px solid var(--light-border);
+      font-size: 13px;
+    }
+
+    .blacklist-tag-remove {
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .blacklist-empty {
+      font-size: 13px;
+      color: var(--secondary-text-color);
+    }
+
     .blacklist-save {
-      margin-top: 12px;
+      margin-top: 4px;
     }
   }
 
