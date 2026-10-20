@@ -36,7 +36,7 @@
             </span>
           </span>
           <span v-else class="user-name">
-            <span >{{ userStore.user.name }}</span>
+            <span >{{ userStore.user?.name || '-' }}</span>
             <span class="edit-name" @click="showSetName">
              {{$t('change')}}
             </span>
@@ -45,7 +45,7 @@
       </div>
       <div class="item">
         <div>{{$t('emailAccount')}}</div>
-        <div>{{ userStore.user.email }}</div>
+        <div>{{ userStore.user?.email || '-' }}</div>
       </div>
       <div class="item">
         <div>{{$t('password')}}</div>
@@ -115,6 +115,10 @@ import {useSettingStore} from "@/store/setting.js";
 import {Icon} from "@iconify/vue";
 import {isEmail, isDomain} from "@/utils/verify-utils.js";
 
+defineOptions({
+  name: 'setting'
+})
+
 const { t } = useI18n()
 const accountStore = useAccountStore()
 const emailStore = useEmailStore()
@@ -123,7 +127,7 @@ const userStore = useUserStore();
 const setPwdLoading = ref(false)
 const setNameShow = ref(false)
 const accountName = ref(null)
-const langSelect = ref(settingStore.lang)
+const langSelect = ref(settingStore.lang || 'zh')
 const oauthBinds = ref([])
 const unbindId = ref(null)
 const blacklistTags = ref([])
@@ -137,9 +141,10 @@ const oauthPlatforms = [
 ]
 
 const visibleOauthPlatforms = computed(() => {
+  const settings = settingStore.settings || {}
   return oauthPlatforms.filter(p => {
     if (boundOf(p.key)) return true
-    return settingStore.settings[p.key + 'Switch'] === 0
+    return settings[p.key + 'Switch'] === 0
   })
 })
 
@@ -387,6 +392,9 @@ function submitPwd() {
 <style scoped lang="scss">
 .box {
   padding: 40px 40px;
+  min-height: 100%;
+  box-sizing: border-box;
+  color: var(--el-text-color-primary);
 
   @media (max-width: 767px) {
     padding: 30px 30px;

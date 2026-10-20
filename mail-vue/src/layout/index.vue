@@ -101,9 +101,15 @@ onBeforeUnmount(() => {
 .el-main {
   padding: 0;
   background: transparent;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .el-header {
+  flex: 0 0 60px;
+  height: 60px;
   background: color-mix(in srgb, var(--surface-color) 92%, var(--tech-accent) 8%);
   border-bottom: solid 1px var(--light-border);
   box-shadow: inset 0 -1px 0 0 rgba(6, 182, 212, 0.08);

@@ -1,11 +1,15 @@
 <template>
-  <div :class="accountVisible ? 'main-box-show' : 'main-box-hide'">
-    <account v-show="accountVisible" class="account-pane" />
-    <router-view class="main-view" v-slot="{ Component, route }">
-      <keep-alive :include="['email','all-email','send','sys-setting','star','spam','user','role','analysis','reg-key','draft','setting']">
-        <component :is="Component" :key="route.name"/>
-      </keep-alive>
-    </router-view>
+  <div class="main-wrap" :class="{ 'has-account': accountVisible }">
+    <aside v-if="accountVisible" class="account-pane">
+      <account />
+    </aside>
+    <section class="content-pane">
+      <router-view v-slot="{ Component, route }">
+        <keep-alive :include="['email','all-email','send','sys-setting','star','spam','user','role','analysis','reg-key','draft','setting']">
+          <component :is="Component" :key="route.name"/>
+        </keep-alive>
+      </router-view>
+    </section>
     <Teleport to="body">
       <div
           v-if="accountVisible && isMobile"
@@ -32,14 +36,12 @@ let innerWidth = window.innerWidth
 let elNotification = null
 
 const accountVisible = computed(() => {
-  return uiStore.accountShow && settingStore.settings.manyEmail === 0 && hasPerm('account:query')
+  return !!(uiStore.accountShow && settingStore.settings?.manyEmail === 0 && hasPerm('account:query'))
 })
 
 watch(() => uiStore.changeNotice, () => {
-
-  const settings = settingStore.settings
-
-  let data = {
+  const settings = settingStore.settings || {}
+  showNotice({
     notice: settings.notice,
     noticeWidth: settings.noticeWidth,
     noticeTitle: settings.noticeTitle,
@@ -48,9 +50,7 @@ watch(() => uiStore.changeNotice, () => {
     noticeDuration: settings.noticeDuration,
     noticePosition: settings.noticePosition,
     noticeOffset: settings.noticeOffset
-  }
-
-  showNotice(data)
+  })
 })
 
 watch(() => uiStore.changePreview, () => {
@@ -58,8 +58,7 @@ watch(() => uiStore.changePreview, () => {
 })
 
 function showNotice(data) {
-
-  if (data.notice === 1) {
+  if (!data || data.notice === 1) {
     return;
   }
 
@@ -78,7 +77,7 @@ function showNotice(data) {
 
   elNotification = ElNotification({
     title: data.noticeTitle,
-    message: `<div style="width: 100%;height: 100%;">${data.noticeContent}</div>`,
+    message: `<div style="width: 100%;height: 100%;">${data.noticeContent || ''}</div>`,
     type: data.noticeType === 'none' ? '' : data.noticeType,
     duration: data.noticeDuration,
     position: data.noticePosition,
@@ -109,9 +108,17 @@ const handleResize = () => {
 
 </script>
 <style lang="scss" scoped>
+.main-wrap {
+  display: flex;
+  width: 100%;
+  height: calc(100% - 60px);
+  min-height: 400px;
+  overflow: hidden;
+  background: var(--surface-color);
+}
+
 .account-pane {
-  grid-column: 1;
-  grid-row: 1;
+  flex: 0 0 260px;
   width: 260px;
   max-width: 260px;
   min-width: 0;
@@ -126,68 +133,24 @@ const handleResize = () => {
     bottom: 0;
     height: auto;
     z-index: 1001;
+    background: var(--surface-color);
   }
 }
 
-.main-box-show {
-  display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr);
-  height: calc(100% - 60px);
-  position: relative;
-
-  @media (max-width: 767px) {
-    grid-template-columns: minmax(0, 1fr);
-
-    > .account-pane {
-      grid-column: auto;
-      grid-row: auto;
-    }
-
-    > .main-view {
-      grid-column: 1;
-      grid-row: 1;
-    }
-  }
-}
-
-.main-box-hide {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr);
-  height: calc(100% - 60px);
-  position: relative;
-
-  > .account-pane {
-    display: none !important;
-  }
-
-  > .main-view {
-    grid-column: 1;
-    grid-row: 1;
-  }
-}
-
-.main-view {
-  grid-column: 2;
-  grid-row: 1;
-  background: var(--surface-color);
+.content-pane {
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   height: 100%;
   overflow: auto;
+  background: var(--surface-color);
 }
 
-.navigation {
-  height: 30px;
-  border-bottom: solid 1px var(--el-menu-border-color);
-  display: inline-flex;
-  justify-items: center;
-  align-items: center;
-  width: 100%;
-  .tag {
-    background: var(--el-bg-color);
-    margin-left: 5px;
+.has-account {
+  @media (max-width: 767px) {
+    .content-pane {
+      flex: 1 1 auto;
+    }
   }
 }
 </style>
