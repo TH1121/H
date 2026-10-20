@@ -4,7 +4,24 @@
       <Icon v-perm="'account:add'" class="icon add" icon="ion:add-outline" width="23" height="23" @click="add"/>
       <Icon class="icon refresh" icon="ion:reload" width="18" height="18" @click="refresh"/>
     </div>
-    <el-scrollbar class="scrollbar" ref="scrollbarRef">
+    <div v-if="blacklistShow" class="blacklist-panel">
+      <div class="blacklist-panel-head">
+        <Icon class="blacklist-back" icon="material-symbols-light:arrow-back-ios-new" width="18" height="18" @click="closeBlacklist"/>
+        <div class="blacklist-panel-title">{{ $t('senderBlacklist') }}</div>
+      </div>
+      <div class="blacklist-panel-email">{{ account?.email }}</div>
+      <div class="blacklist-panel-desc">{{ $t('senderBlacklistDesc') }}</div>
+      <el-input-tag
+          v-model="blacklistTags"
+          class="blacklist-tags"
+          :placeholder="$t('senderBlacklistTagPlaceholder')"
+          @add-tag="onBlacklistAddTag"
+      />
+      <el-button class="blacklist-save" type="primary" :loading="blacklistLoading" @click="saveBlacklist">
+        {{ $t('save') }}
+      </el-button>
+    </div>
+    <el-scrollbar v-else class="scrollbar" ref="scrollbarRef">
       <div v-infinite-scroll="getAccountList" :infinite-scroll-distance="600" :infinite-scroll-immediate="false">
         <el-card class="item" :class="itemBg(item.accountId)" v-for="(item, index) in accounts" :key="item.accountId"
                  @click="changeAccount(item)">
@@ -125,27 +142,6 @@
         </el-button>
       </div>
     </el-dialog>
-    <el-dialog
-        v-model="blacklistShow"
-        :title="$t('senderBlacklist')"
-        width="420"
-        append-to-body
-        destroy-on-close
-    >
-      <div class="blacklist-box">
-        <div class="blacklist-desc">{{ $t('senderBlacklistDesc') }}</div>
-        <el-input
-            v-model="blacklistText"
-            type="textarea"
-            :rows="6"
-            :placeholder="$t('senderBlacklistPlaceholder')"
-            autocomplete="off"
-        />
-        <el-button class="blacklist-save" type="primary" @click="saveBlacklist" :loading="blacklistLoading"
-        >{{ $t('save') }}
-        </el-button>
-      </div>
-    </el-dialog>
   </div>
 </template>
 <script setup>
@@ -188,7 +184,7 @@ const setNameLoading = ref(false)
 const accountName = ref(null)
 const blacklistShow = ref(false)
 const blacklistLoading = ref(false)
-const blacklistText = ref('')
+const blacklistTags = ref([])
 const addRef = ref({})
 const scrollbarRef = ref({})
 let account = null
@@ -330,20 +326,36 @@ function handleAccountCommand(command, accountItem, index) {
 
 function openBlacklist(accountItem) {
   account = accountItem
-  blacklistText.value = String(accountItem.blacklist || '')
+  blacklistTags.value = String(accountItem.blacklist || '')
       .split(/[,，]/)
-      .map(s => s.trim())
+      .map(s => s.trim().toLowerCase())
       .filter(Boolean)
-      .join('\n')
   blacklistShow.value = true
+}
+
+function closeBlacklist() {
+  blacklistShow.value = false
+}
+
+function onBlacklistAddTag(val) {
+  const items = Array.from(new Set(
+      String(val || '').split(/[,，\s]+/).map(item => item.trim().toLowerCase()).filter(Boolean)
+  ))
+  blacklistTags.value.splice(blacklistTags.value.length - 1, 1)
+  items.forEach(item => {
+    if ((isEmail(item) || isDomain(item)) && !blacklistTags.value.includes(item)) {
+      blacklistTags.value.push(item)
+    } else if (!isEmail(item) && !isDomain(item)) {
+      ElMessage({ message: t('notEmailMsg'), type: 'error', plain: true })
+    }
+  })
 }
 
 function saveBlacklist() {
   if (blacklistLoading.value || !account) return
 
-  const list = String(blacklistText.value || '')
-      .split(/[,，\n]/)
-      .map(s => s.trim().toLowerCase())
+  const list = (blacklistTags.value || [])
+      .map(s => String(s || '').trim().toLowerCase())
       .filter(Boolean)
 
   for (const item of list) {
@@ -720,6 +732,53 @@ path[fill="#ffdda1"] {
   .item-choose {
     background: var(--choose-account-background);
   }
+
+  .blacklist-panel {
+    height: calc(100% - 38px);
+    padding: 14px 12px;
+    overflow: auto;
+    box-sizing: border-box;
+
+    .blacklist-panel-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .blacklist-back {
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .blacklist-panel-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .blacklist-panel-email {
+      font-size: 13px;
+      color: var(--secondary-text-color);
+      margin-bottom: 8px;
+      word-break: break-all;
+    }
+
+    .blacklist-panel-desc {
+      font-size: 12px;
+      color: var(--secondary-text-color);
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .blacklist-tags {
+      width: 100%;
+    }
+
+    .blacklist-save {
+      width: 100%;
+      margin-top: 14px;
+    }
+  }
 }
 
 
@@ -770,20 +829,4 @@ path[fill="#ffdda1"] {
   position: fixed;
 }
 
-</style>
-
-<style lang="scss">
-.blacklist-box {
-  .blacklist-desc {
-    font-size: 13px;
-    color: var(--secondary-text-color);
-    margin-bottom: 12px;
-    line-height: 1.5;
-  }
-
-  .blacklist-save {
-    width: 100%;
-    margin-top: 15px;
-  }
-}
 </style>

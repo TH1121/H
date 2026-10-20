@@ -1,5 +1,17 @@
 <template>
   <div class="box">
+    <div class="blacklist-setting">
+      <div class="title">{{ $t('senderBlacklist') }}</div>
+      <div class="blacklist-tip">{{ $t('senderBlacklistDesc') }}</div>
+      <el-input-tag
+          v-model="blacklistTags"
+          :placeholder="$t('senderBlacklistTagPlaceholder')"
+          @add-tag="onBlacklistAddTag"
+      />
+      <el-button type="primary" class="blacklist-save" :loading="blacklistLoading" @click="saveBlacklist">
+        {{ $t('save') }}
+      </el-button>
+    </div>
     <div class="container">
       <div class="title">{{$t('profile')}}</div>
       <div class="item">
@@ -51,12 +63,10 @@
     <div class="blacklist-setting">
       <div class="title">{{ $t('senderBlacklist') }}</div>
       <div class="blacklist-tip">{{ $t('senderBlacklistDesc') }}</div>
-      <el-input
-          v-model="blacklistText"
-          type="textarea"
-          :rows="5"
-          :placeholder="$t('senderBlacklistPlaceholder')"
-          autocomplete="off"
+      <el-input-tag
+          v-model="blacklistTags"
+          :placeholder="$t('senderBlacklistTagPlaceholder')"
+          @add-tag="onBlacklistAddTag"
       />
       <el-button type="primary" class="blacklist-save" :loading="blacklistLoading" @click="saveBlacklist">
         {{ $t('save') }}
@@ -116,7 +126,7 @@ const accountName = ref(null)
 const langSelect = ref(settingStore.lang)
 const oauthBinds = ref([])
 const unbindId = ref(null)
-const blacklistText = ref('')
+const blacklistTags = ref([])
 const blacklistLoading = ref(false)
 
 const oauthPlatforms = [
@@ -179,11 +189,24 @@ function loadBlacklist() {
   const raw = userStore.user?.account?.blacklist
       || accountStore.currentAccount?.blacklist
       || ''
-  blacklistText.value = String(raw)
+  blacklistTags.value = String(raw)
       .split(/[,，]/)
-      .map(s => s.trim())
+      .map(s => s.trim().toLowerCase())
       .filter(Boolean)
-      .join('\n')
+}
+
+function onBlacklistAddTag(val) {
+  const items = Array.from(new Set(
+      String(val || '').split(/[,，\s]+/).map(item => item.trim().toLowerCase()).filter(Boolean)
+  ))
+  blacklistTags.value.splice(blacklistTags.value.length - 1, 1)
+  items.forEach(item => {
+    if ((isEmail(item) || isDomain(item)) && !blacklistTags.value.includes(item)) {
+      blacklistTags.value.push(item)
+    } else if (!isEmail(item) && !isDomain(item)) {
+      ElMessage({ message: t('notEmailMsg'), type: 'error', plain: true })
+    }
+  })
 }
 
 function saveBlacklist() {
@@ -191,9 +214,8 @@ function saveBlacklist() {
   const accountId = userStore.user?.account?.accountId
   if (!accountId) return
 
-  const list = String(blacklistText.value || '')
-      .split(/[,，\n]/)
-      .map(s => s.trim().toLowerCase())
+  const list = (blacklistTags.value || [])
+      .map(s => String(s || '').trim().toLowerCase())
       .filter(Boolean)
 
   for (const item of list) {
@@ -372,7 +394,11 @@ function submitPwd() {
 
   .blacklist-setting {
     margin-bottom: 40px;
-    max-width: 480px;
+    max-width: 560px;
+    padding: 16px;
+    border: 1px solid var(--light-border);
+    border-radius: 10px;
+    background: var(--el-bg-color);
 
     .blacklist-tip {
       margin: 10px 0 12px;
