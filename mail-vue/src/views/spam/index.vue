@@ -1,5 +1,6 @@
 <template>
   <emailScroll ref="scroll"
+               type="spam"
                :cancel-success="cancelStar"
                :star-success="addStar"
                :getEmailList="getEmailList"

@@ -189,7 +189,23 @@
               </div>
             </template>
           </el-dropdown-item>
-          <el-dropdown-item v-if="['email','send','star'].includes(props.type)" @click="openReply(rightClickEmail)">
+          <el-dropdown-item v-if="props.type === 'email'" @click="markSpam(rightClickEmail, 1)">
+            <template #default>
+              <div class="right-dropdown-item">
+                <Icon icon="mdi:email-alert-outline" width="20" height="20" />
+                <span>{{t('markAsSpam')}}</span>
+              </div>
+            </template>
+          </el-dropdown-item>
+          <el-dropdown-item v-if="props.type === 'spam'" @click="markSpam(rightClickEmail, 0)">
+            <template #default>
+              <div class="right-dropdown-item">
+                <Icon icon="mdi:email-check-outline" width="20" height="20" />
+                <span>{{t('markAsNotSpam')}}</span>
+              </div>
+            </template>
+          </el-dropdown-item>
+          <el-dropdown-item v-if="['email','send','star','spam'].includes(props.type)" @click="openReply(rightClickEmail)">
             <template #default>
               <div class="right-dropdown-item">
                 <Icon icon="la:reply" width="20" height="20"  />
@@ -197,7 +213,7 @@
               </div>
             </template>
           </el-dropdown-item>
-          <el-dropdown-item v-if="['email','send', 'star'].includes(props.type)" @click="openForward(rightClickEmail)">
+          <el-dropdown-item v-if="['email','send', 'star','spam'].includes(props.type)" @click="openForward(rightClickEmail)">
             <template #default>
               <div class="right-dropdown-item">
                 <Icon icon="iconoir:arrow-up-right" width="19" height="19"  />
@@ -205,7 +221,7 @@
               </div>
             </template>
           </el-dropdown-item>
-          <el-dropdown-item v-if="['email','send', 'star'].includes(props.type)" @click="starChange(rightClickEmail)">
+          <el-dropdown-item v-if="['email','send', 'star','spam'].includes(props.type)" @click="starChange(rightClickEmail)">
             <template #default>
               <div class="right-dropdown-item">
                 <Icon icon="solar:star-line-duotone" width="19" height="19"/>
@@ -262,6 +278,7 @@ import {sleep} from "@/utils/time-utils.js"
 import {fromNow, formatListDate} from "@/utils/day.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum, EmailOpenedEnum} from "@/enums/email-enum.js";
+import {emailSetSpam} from "@/request/email.js";
 import { UseVirtualList } from '@vueuse/components'
 import { useScroll } from '@vueuse/core'
 
@@ -680,6 +697,23 @@ function localRead(emailIds) {
       emailList[index].unread = EmailUnreadEnum.READ;
       emailList[index].checked = false;
     }
+  })
+}
+
+function markSpam(email, isSpam) {
+  if (!email?.emailId) return
+  emailSetSpam([email.emailId], isSpam, true).then(() => {
+    deleteEmail([email.emailId])
+    if (isSpam) {
+      emailStore.spamScroll?.refreshList?.()
+    } else {
+      emailStore.emailScroll?.refreshList?.()
+    }
+    ElMessage({
+      message: t(isSpam ? 'markAsSpamSuccess' : 'markAsNotSpamSuccess'),
+      type: 'success',
+      plain: true,
+    })
   })
 }
 

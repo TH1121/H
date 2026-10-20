@@ -3,6 +3,24 @@
     <div class="header-actions">
       <Icon class="icon" icon="material-symbols-light:arrow-back-ios-new" width="20" height="20" @click="handleBack"/>
       <Icon v-perm="'email:delete'" class="icon" icon="uiw:delete" width="16" height="16" @click="handleDelete"/>
+      <Icon
+          v-if="canToggleSpam && !email.isSpam"
+          class="icon"
+          icon="mdi:email-alert-outline"
+          width="20"
+          height="20"
+          :title="$t('markAsSpam')"
+          @click="toggleSpam(1)"
+      />
+      <Icon
+          v-if="canToggleSpam && email.isSpam"
+          class="icon"
+          icon="mdi:email-check-outline"
+          width="20"
+          height="20"
+          :title="$t('markAsNotSpam')"
+          @click="toggleSpam(0)"
+      />
       <span class="star" v-if="emailStore.contentData.showStar">
         <Icon class="icon" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20"/>
         <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18" height="18"/>
@@ -90,7 +108,7 @@ import ShadowHtml from '@/components/shadow-html/index.vue'
 import {computed, reactive, ref, watch, onMounted, onUnmounted, nextTick} from "vue";
 import {useRouter} from 'vue-router'
 import {ElMessage, ElMessageBox} from 'element-plus'
-import {emailDelete, emailRead, emailTranslate, emailTranslateTexts} from "@/request/email.js";
+import {emailDelete, emailRead, emailSetSpam, emailTranslate, emailTranslateTexts} from "@/request/email.js";
 import {Icon} from "@iconify/vue";
 import {useEmailStore} from "@/store/email.js";
 import {useAccountStore} from "@/store/account.js";

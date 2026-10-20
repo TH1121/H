@@ -35,6 +35,11 @@ app.put('/email/read', async (c) => {
 	return c.json(result.ok());
 })
 
+app.put('/email/setSpam', async (c) => {
+	const data = await emailService.setSpam(c, await c.req.json(), userContext.getUserId(c));
+	return c.json(result.ok(data));
+})
+
 app.post('/email/translate', async (c) => {
 	const data = await aiService.translateEmail(c, await c.req.json());
 	return c.json(result.ok(data));

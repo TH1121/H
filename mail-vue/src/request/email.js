@@ -18,6 +18,10 @@ export function emailRead(emailIds) {
     return http.put('/email/read', {emailIds})
 }
 
+export function emailSetSpam(emailIds, isSpam, updateBlacklist = true) {
+    return http.put('/email/setSpam', {emailIds, isSpam, updateBlacklist})
+}
+
 export function emailTranslate({ subject, content, text, targetLang, sourceLang }) {
     return http.post('/email/translate', { subject, content, text, targetLang, sourceLang })
 }
