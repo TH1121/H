@@ -18,17 +18,17 @@
             </div>
             <div class="settings" @click.stop>
               <Icon icon="fluent-color:clipboard-24" width="22" height="22" @click.stop="copyAccount(item.email)"/>
-              <Icon icon="fluent:settings-24-filled" width="21" height="21" color="#909399"
-                    v-if="showNullSetting(item)"/>
-              <el-dropdown v-else>
-                <Icon icon="fluent:settings-24-filled" width="21" height="21" color="#909399"/>
+              <el-dropdown trigger="click" @command="(cmd) => handleAccountCommand(cmd, item, index)">
+                <span class="setting-trigger" @click.stop>
+                  <Icon icon="fluent:settings-24-filled" width="21" height="21" color="#909399"/>
+                </span>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item v-if="hasPerm('email:send')" @click="openSetName(item)">{{ $t('rename') }}</el-dropdown-item>
-                    <el-dropdown-item @click="openBlacklist(item)">{{ $t('senderBlacklist') }}</el-dropdown-item>
-                    <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId" @click="setAsTop(item, index)">{{ $t('pin') }}</el-dropdown-item>
+                    <el-dropdown-item v-if="hasPerm('email:send')" command="rename">{{ $t('rename') }}</el-dropdown-item>
+                    <el-dropdown-item command="blacklist">{{ $t('senderBlacklist') }}</el-dropdown-item>
+                    <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId" command="pin">{{ $t('pin') }}</el-dropdown-item>
                     <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId && hasPerm('account:delete')"
-                                      @click="remove(item)">{{ $t('delete') }}
+                                      command="delete">{{ $t('delete') }}
                     </el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
@@ -314,8 +314,11 @@ function setAllReceive(account) {
 }
 
 
-function showNullSetting() {
-  return false
+function handleAccountCommand(command, accountItem, index) {
+  if (command === 'rename') openSetName(accountItem)
+  else if (command === 'blacklist') openBlacklist(accountItem)
+  else if (command === 'pin') setAsTop(accountItem, index)
+  else if (command === 'delete') remove(accountItem)
 }
 
 function openBlacklist(accountItem) {
@@ -682,6 +685,13 @@ path[fill="#ffdda1"] {
         display: flex;
         align-items: center;
         gap: 10px;
+      }
+
+      .setting-trigger {
+        display: inline-flex;
+        align-items: center;
+        cursor: pointer;
+        outline: none;
       }
 
       .send-email {
