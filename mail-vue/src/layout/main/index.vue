@@ -36,7 +36,8 @@ let innerWidth = window.innerWidth
 let elNotification = null
 
 const accountVisible = computed(() => {
-  return !!(uiStore.accountShow && settingStore.settings?.manyEmail === 0 && hasPerm('account:query'))
+  const settings = settingStore.settings || {}
+  return !!(uiStore.accountShow && settings.manyEmail === 0 && hasPerm('account:query'))
 })
 
 watch(() => uiStore.changeNotice, () => {

@@ -9,7 +9,7 @@
         <Icon class="blacklist-back" icon="material-symbols-light:arrow-back-ios-new" width="18" height="18" @click="closeBlacklist"/>
         <div class="blacklist-panel-title">{{ $t('senderBlacklist') }}</div>
       </div>
-      <div class="blacklist-panel-email">{{ account?.email }}</div>
+      <div class="blacklist-panel-email">{{ account && account.email }}</div>
       <div class="blacklist-panel-desc">{{ $t('senderBlacklistDesc') }}</div>
       <div class="blacklist-add-row">
         <input
@@ -311,8 +311,12 @@ function setAllReceive(account) {
       })
     }
     changeAccount(account);
-    emailStore.emailScroll?.refreshList();
-    emailStore.sendScroll?.refreshList();
+    if (emailStore.emailScroll && emailStore.emailScroll.refreshList) {
+      emailStore.emailScroll.refreshList();
+    }
+    if (emailStore.sendScroll && emailStore.sendScroll.refreshList) {
+      emailStore.sendScroll.refreshList();
+    }
   })
 }
 

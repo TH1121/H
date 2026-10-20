@@ -36,7 +36,7 @@
             </span>
           </span>
           <span v-else class="user-name">
-            <span >{{ userStore.user?.name || '-' }}</span>
+            <span >{{ userName }}</span>
             <span class="edit-name" @click="showSetName">
              {{$t('change')}}
             </span>
@@ -45,7 +45,7 @@
       </div>
       <div class="item">
         <div>{{$t('emailAccount')}}</div>
-        <div>{{ userStore.user?.email || '-' }}</div>
+        <div>{{ userEmail }}</div>
       </div>
       <div class="item">
         <div>{{$t('password')}}</div>
@@ -134,6 +134,15 @@ const blacklistTags = ref([])
 const blacklistInput = ref('')
 const blacklistLoading = ref(false)
 
+const userName = computed(() => {
+  const user = userStore.user
+  return (user && user.name) ? user.name : '-'
+})
+const userEmail = computed(() => {
+  const user = userStore.user
+  return (user && user.email) ? user.email : '-'
+})
+
 const oauthPlatforms = [
   { key: 'google', label: 'Google', icon: 'devicon:google', iconType: 'iconify' },
   { key: 'github', label: 'GitHub', icon: 'codicon:github-inverted', iconType: 'iconify' },
@@ -192,9 +201,9 @@ function unbindOauth(row) {
 }
 
 function loadBlacklist() {
-  const raw = userStore.user?.account?.blacklist
-      || accountStore.currentAccount?.blacklist
-      || ''
+  const user = userStore.user || {}
+  const account = user.account || accountStore.currentAccount || {}
+  const raw = account.blacklist || ''
   blacklistTags.value = String(raw)
       .split(/[,，]/)
       .map(s => s.trim().toLowerCase())
@@ -227,7 +236,9 @@ function removeBlacklistItem(index) {
 
 function saveBlacklist() {
   if (blacklistLoading.value) return
-  const accountId = userStore.user?.account?.accountId
+  const user = userStore.user || {}
+  const account = user.account || {}
+  const accountId = account.accountId
   if (!accountId) return
 
   const list = (blacklistTags.value || [])
@@ -244,12 +255,18 @@ function saveBlacklist() {
   blacklistLoading.value = true
   const blacklist = list.join(',')
   accountSetBlacklist(accountId, blacklist).then(() => {
-    if (userStore.user.account) userStore.user.account.blacklist = blacklist
-    if (accountStore.currentAccount?.accountId === accountId) {
+    if (userStore.user && userStore.user.account) {
+      userStore.user.account.blacklist = blacklist
+    }
+    if (accountStore.currentAccount && accountStore.currentAccount.accountId === accountId) {
       accountStore.currentAccount.blacklist = blacklist
     }
-    emailStore.emailScroll?.refreshList()
-    emailStore.spamScroll?.refreshList()
+    if (emailStore.emailScroll && emailStore.emailScroll.refreshList) {
+      emailStore.emailScroll.refreshList()
+    }
+    if (emailStore.spamScroll && emailStore.spamScroll.refreshList) {
+      emailStore.spamScroll.refreshList()
+    }
     ElMessage({ message: t('saveSuccessMsg'), type: 'success', plain: true })
   }).finally(() => {
     blacklistLoading.value = false

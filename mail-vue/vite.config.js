@@ -52,7 +52,7 @@ export default defineConfig(({mode}) => {
             }
         },
         build: {
-            target: 'es2022',
+            target: 'es2019',
             outDir: env.VITE_OUT_DIR || 'dist',
             emptyOutDir: true,
             assetsInclude: ['**/*.json']
