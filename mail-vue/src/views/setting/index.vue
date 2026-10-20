@@ -257,12 +257,12 @@ function saveBlacklist() {
 }
 
 onMounted(() => {
-  loadOauthBinds()
-  loadBlacklist()
-})
-
-defineOptions({
-  name: 'setting'
+  try {
+    loadOauthBinds()
+    loadBlacklist()
+  } catch (e) {
+    console.error(e)
+  }
 })
 
 function showSetName() {
