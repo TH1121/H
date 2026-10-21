@@ -45,7 +45,6 @@
               <Icon @click="setAllReceive(item)" v-else icon="flat-color-icons:folder" width="22" height="22" color="#23c4f1" />
             </div>
             <div class="settings" @click.stop>
-              <span class="blacklist-btn" @click.stop="openBlacklist(item)">{{ $t('senderBlacklist') }}</span>
               <Icon icon="fluent-color:clipboard-24" width="22" height="22" @click.stop="copyAccount(item.email)"/>
               <el-dropdown trigger="click" @command="(cmd) => handleAccountCommand(cmd, item, index)">
                 <span class="setting-trigger" @click.stop>
@@ -728,14 +727,6 @@ path[fill="#ffdda1"] {
         align-items: center;
         cursor: pointer;
         outline: none;
-      }
-
-      .blacklist-btn {
-        font-size: 12px;
-        color: var(--el-color-primary);
-        cursor: pointer;
-        white-space: nowrap;
-        user-select: none;
       }
 
       .send-email {
