@@ -1,32 +1,32 @@
 <template>
   <div class="box">
     <div class="header-actions">
-      <Icon class="icon" icon="material-symbols-light:arrow-back-ios-new" width="20" height="20" :title="$t('back')" @click="handleBack"/>
-      <Icon v-perm="'email:delete'" class="icon" icon="uiw:delete" width="16" height="16" :title="$t('delete')" @click="handleDelete"/>
-      <Icon
-          v-if="canToggleSpam && !email.isSpam"
-          class="icon"
-          icon="mdi:email-alert-outline"
-          width="20"
-          height="20"
-          :title="$t('markAsSpam')"
-          @click="toggleSpam(1)"
-      />
-      <Icon
-          v-if="canToggleSpam && email.isSpam"
-          class="icon"
-          icon="mdi:email-check-outline"
-          width="20"
-          height="20"
-          :title="$t('markAsNotSpam')"
-          @click="toggleSpam(0)"
-      />
+      <el-tooltip effect="dark" :content="$t('back')">
+        <Icon class="icon" icon="material-symbols-light:arrow-back-ios-new" width="20" height="20" @click="handleBack"/>
+      </el-tooltip>
+      <el-tooltip effect="dark" :content="$t('delete')">
+        <Icon v-perm="'email:delete'" class="icon" icon="uiw:delete" width="16" height="16" @click="handleDelete"/>
+      </el-tooltip>
+      <el-tooltip v-if="canToggleSpam && !email.isSpam" effect="dark" :content="$t('markAsSpam')">
+        <Icon class="icon" icon="mdi:email-alert-outline" width="20" height="20" @click="toggleSpam(1)"/>
+      </el-tooltip>
+      <el-tooltip v-if="canToggleSpam && email.isSpam" effect="dark" :content="$t('markAsNotSpam')">
+        <Icon class="icon" icon="mdi:email-check-outline" width="20" height="20" @click="toggleSpam(0)"/>
+      </el-tooltip>
       <span class="star" v-if="emailStore.contentData.showStar">
-        <Icon class="icon" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20" :title="$t('star')"/>
-        <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18" height="18" :title="$t('star')"/>
+        <el-tooltip effect="dark" :content="$t('star')">
+          <Icon class="icon" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20"/>
+        </el-tooltip>
+        <el-tooltip effect="dark" :content="$t('star')">
+          <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18" height="18"/>
+        </el-tooltip>
       </span>
-      <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openReply" icon="la:reply" width="21" height="21" :title="$t('reply')" />
-      <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openForward" icon="iconoir:arrow-up-right" width="20" height="20" :title="$t('forward')" />
+      <el-tooltip v-if="emailStore.contentData.showReply" effect="dark" :content="$t('reply')">
+        <Icon class="icon" v-perm="'email:send'" @click="openReply" icon="la:reply" width="21" height="21" />
+      </el-tooltip>
+      <el-tooltip v-if="emailStore.contentData.showReply" effect="dark" :content="$t('forward')">
+        <Icon class="icon" v-perm="'email:send'" @click="openForward" icon="iconoir:arrow-up-right" width="20" height="20" />
+      </el-tooltip>
     </div>
     <div></div>
     <el-scrollbar class="scrollbar">
@@ -84,10 +84,14 @@
                 </div>
                 <div class="att-size">{{ formatBytes(att.size) }}</div>
                 <div class="opt-icon att-icon">
-                  <Icon v-if="isImage(att.filename)" icon="hugeicons:view" width="22" height="22" :title="$t('preview')" @click="showImage(att.key)"/>
-                  <a :href="cvtR2Url(att.key)" download>
-                    <Icon icon="system-uicons:push-down" width="22" height="22" :title="$t('download')"/>
-                  </a>
+                  <el-tooltip effect="dark" :content="$t('preview')">
+                    <Icon v-if="isImage(att.filename)" icon="hugeicons:view" width="22" height="22" @click="showImage(att.key)"/>
+                  </el-tooltip>
+                  <el-tooltip effect="dark" :content="$t('download')">
+                    <a :href="cvtR2Url(att.key)" download>
+                      <Icon icon="system-uicons:push-down" width="22" height="22"/>
+                    </a>
+                  </el-tooltip>
                 </div>
               </div>
             </div>

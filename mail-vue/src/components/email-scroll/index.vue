@@ -11,21 +11,27 @@
       <div class="header-left" :style="'padding-left:' + actionLeft">
 
         <slot name="first"></slot>
-        <Icon class="icon reload" icon="ion:reload" width="18" height="18" :title="$t('refresh')" @click="refresh"/>
-        <Icon v-perm="'email:delete'" class="icon delete" icon="uiw:delete" width="16" height="16"
-              v-if="getSelectedMailsIds().length > 0"
-              :title="$t('delete')"
-              @click="handleDelete"/>
-        <Icon v-perm="'email:delete'" class="icon delete" icon="fluent:mail-read-20-regular" width="21" height="21"
-              v-if="getSelectedMailsIds().length > 0 && showUnread"
-              :title="$t('markAsRead')"
-              @click="handleRead"/>
+        <el-tooltip effect="dark" :content="$t('refresh')">
+          <Icon class="icon reload" icon="ion:reload" width="18" height="18" @click="refresh"/>
+        </el-tooltip>
+        <el-tooltip effect="dark" :content="$t('delete')">
+          <Icon v-perm="'email:delete'" class="icon delete" icon="uiw:delete" width="16" height="16"
+                v-if="getSelectedMailsIds().length > 0"
+                @click="handleDelete"/>
+        </el-tooltip>
+        <el-tooltip effect="dark" :content="$t('markAsRead')">
+          <Icon v-perm="'email:delete'" class="icon delete" icon="fluent:mail-read-20-regular" width="21" height="21"
+                v-if="getSelectedMailsIds().length > 0 && showUnread"
+                @click="handleRead"/>
+        </el-tooltip>
       </div>
 
       <div class="header-right">
         <span class="email-count" v-if="total">{{ $t('emailCount', {total: total}) }}</span>
-        <Icon v-if="showAccountIcon" class="more-icon icon" width="16" height="16" icon="akar-icons:dot-grid-fill"
-              @click="changeAccountShow"/>
+        <el-tooltip effect="dark" :content="$t('switchAccount')">
+          <Icon v-if="showAccountIcon" class="more-icon icon" width="16" height="16" icon="akar-icons:dot-grid-fill"
+                @click="changeAccountShow"/>
+        </el-tooltip>
       </div>
     </div>
 

@@ -69,12 +69,20 @@
           <el-option :label="$t('unreadMail')" value="0"/>
           <el-option :label="$t('readMail')" value="1"/>
         </el-select>
-        <Icon class="icon" icon="iconoir:search" @click="search" width="20" height="20"/>
-        <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-down-outline"
-              v-if="params.timeSort === 0" width="28" height="28"/>
-        <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-up-outline" v-else
-              width="28" height="28"/>
-        <Icon class="icon clear" icon="fluent:broom-sparkle-16-regular" width="22" height="22" @click="openBathDelete"/>
+        <el-tooltip effect="dark" :content="$t('search')">
+          <Icon class="icon" icon="iconoir:search" @click="search" width="20" height="20"/>
+        </el-tooltip>
+        <el-tooltip effect="dark" :content="$t('sortNewestFirst')">
+          <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-down-outline"
+                v-if="params.timeSort === 0" width="28" height="28"/>
+        </el-tooltip>
+        <el-tooltip effect="dark" :content="$t('sortOldestFirst')">
+          <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-up-outline" v-else
+                width="28" height="28"/>
+        </el-tooltip>
+        <el-tooltip effect="dark" :content="$t('clear')">
+          <Icon class="icon clear" icon="fluent:broom-sparkle-16-regular" width="22" height="22" @click="openBathDelete"/>
+        </el-tooltip>
       </template>
     </emailScroll>
     <el-dialog v-model="showBathDelete" :title="$t('clearEmail')" width="335"
