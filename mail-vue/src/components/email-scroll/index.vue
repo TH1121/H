@@ -701,13 +701,16 @@ function localRead(emailIds) {
 }
 
 function markSpam(email, isSpam) {
-  if (!email?.emailId) return
-  emailSetSpam([email.emailId], isSpam, true).then(() => {
-    deleteEmail([email.emailId])
+  const emailId = Number(email && email.emailId)
+  if (!emailId) return
+  emailSetSpam([emailId], isSpam, true, email.sendEmail).then(() => {
+    deleteEmail([emailId])
     if (isSpam) {
-      emailStore.spamScroll?.refreshList?.()
-    } else {
-      emailStore.emailScroll?.refreshList?.()
+      if (emailStore.spamScroll && emailStore.spamScroll.refreshList) {
+        emailStore.spamScroll.refreshList()
+      }
+    } else if (emailStore.emailScroll && emailStore.emailScroll.refreshList) {
+      emailStore.emailScroll.refreshList()
     }
     ElMessage({
       message: t(isSpam ? 'markAsSpamSuccess' : 'markAsNotSpamSuccess'),

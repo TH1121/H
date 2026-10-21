@@ -496,14 +496,22 @@ const canToggleSpam = computed(() => {
 })
 
 function toggleSpam(isSpam) {
-  if (!email.value?.emailId) return
-  emailSetSpam([email.value.emailId], isSpam, true).then(() => {
-    email.value.isSpam = isSpam
-    emailStore.deleteIds = [email.value.emailId]
+  const emailId = Number(email.value && email.value.emailId)
+  if (!emailId) {
+    ElMessage({ message: t('markAsSpamFail'), type: 'error', plain: true })
+    return
+  }
+  emailSetSpam([emailId], isSpam, true, email.value.sendEmail).then(() => {
+    if (emailStore.contentData.email) {
+      emailStore.contentData.email.isSpam = isSpam
+    }
+    emailStore.deleteIds = [emailId]
     if (isSpam) {
-      emailStore.spamScroll?.refreshList?.()
-    } else {
-      emailStore.emailScroll?.refreshList?.()
+      if (emailStore.spamScroll && emailStore.spamScroll.refreshList) {
+        emailStore.spamScroll.refreshList()
+      }
+    } else if (emailStore.emailScroll && emailStore.emailScroll.refreshList) {
+      emailStore.emailScroll.refreshList()
     }
     ElMessage({
       message: t(isSpam ? 'markAsSpamSuccess' : 'markAsNotSpamSuccess'),

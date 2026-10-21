@@ -3,6 +3,7 @@ const en = {
 	addAccountDisabled: 'Add Email Address feature is disabled',
 	regDisabled: 'Sign up is disabled',
 	emptyEmail: 'Email cannot be empty',
+	emailNotFound: 'Email not found or access denied',
 	emptyAccountId: 'accountId cannot be empty',
 	notEmail: 'Invalid email',
 	notExistDomain: 'Email domain does not exist',

@@ -4,14 +4,23 @@ const emailUtils = {
 
 	getDomain(email) {
 		if (typeof email !== 'string') return '';
-		const parts = email.split('@');
+		const parts = this.extractAddress(email).split('@');
 		return parts.length === 2 ? parts[1] : '';
 	},
 
 	getName(email) {
 		if (typeof email !== 'string') return '';
-		const parts = email.trim().split('@');
+		const parts = this.extractAddress(email).split('@');
 		return parts.length === 2 ? parts[0] : '';
+	},
+
+	/** Normalize "Name <a@b.com>" / raw address to lowercase bare email */
+	extractAddress(raw) {
+		const text = String(raw || '').trim();
+		if (!text) return '';
+		const angled = text.match(/<([^>]+)>/);
+		const value = (angled ? angled[1] : text).trim().toLowerCase();
+		return value.includes('@') ? value : '';
 	},
 
 	getBaseEmail(email) {

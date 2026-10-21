@@ -297,8 +297,8 @@ const accountService = {
 
 	isSenderBlacklisted(blacklist, sendEmail) {
 		const list = this.normalizeBlacklist(blacklist);
-		if (!list.length || !sendEmail) return false;
-		const from = String(sendEmail).trim().toLowerCase();
+		const from = emailUtils.extractAddress(sendEmail);
+		if (!list.length || !from) return false;
 		const domain = emailUtils.getDomain(from).toLowerCase();
 		return list.some(item => item === from || item === domain);
 	},

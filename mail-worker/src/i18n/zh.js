@@ -3,6 +3,7 @@ const zh = {
 	addAccountDisabled: '添加邮箱功能已关闭',
 	regDisabled: '注册功能已关闭',
 	emptyEmail: '邮箱不能为空',
+	emailNotFound: '邮件不存在或无权操作',
 	emptyAccountId: 'accountId不能为空',
 	notEmail: '非法邮箱',
 	notExistDomain: '不存在的邮箱域名',

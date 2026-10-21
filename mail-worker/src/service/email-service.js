@@ -1324,19 +1324,30 @@ const emailService = {
 		}
 	},
 
-	async setSpam(c, params, userId) {
-		const emailIds = (params.emailIds || [])
+	normalizeEmailIds(raw) {
+		if (raw == null || raw === '') return [];
+		const list = Array.isArray(raw)
+			? raw
+			: String(raw).split(',');
+		return list
 			.map(id => Number(id))
 			.filter(id => !Number.isNaN(id) && id > 0);
+	},
+
+	async setSpam(c, params, userId) {
+		const emailIds = this.normalizeEmailIds(params.emailIds ?? params.emailId);
+		const uid = Number(userId);
 		const isSpam = Number(params.isSpam) === emailConst.isSpam.SPAM
 			? emailConst.isSpam.SPAM
 			: emailConst.isSpam.NORMAL;
 		const updateBlacklist = params.updateBlacklist !== false && params.updateBlacklist !== 0 && params.updateBlacklist !== '0';
+		const fallbackSender = emailUtils.extractAddress(params.sendEmail);
 
 		if (!emailIds.length) {
-			throw new BizError(t('emptyEmail'));
+			throw new BizError(t('emailNotFound'));
 		}
 
+		// Match read(): do not require isDel=NORMAL, so persisted/detail views still work
 		const rows = await orm(c).select({
 			emailId: email.emailId,
 			accountId: email.accountId,
@@ -1344,33 +1355,34 @@ const emailService = {
 			type: email.type,
 		}).from(email).where(
 			and(
-				eq(email.userId, userId),
-				eq(email.isDel, isDel.NORMAL),
+				eq(email.userId, uid),
 				inArray(email.emailId, emailIds),
 			)
 		).all();
 
 		if (!rows.length) {
-			throw new BizError(t('emptyEmail'));
+			throw new BizError(t('emailNotFound'));
 		}
 
 		const ids = rows.map(row => row.emailId);
 		await orm(c).update(email).set({ isSpam }).where(
-			and(eq(email.userId, userId), inArray(email.emailId, ids))
+			and(eq(email.userId, uid), inArray(email.emailId, ids))
 		).run();
 
 		if (updateBlacklist) {
 			const byAccount = new Map();
 			for (const row of rows) {
-				if (row.type !== emailConst.type.RECEIVE || !row.sendEmail) continue;
+				if (row.type !== emailConst.type.RECEIVE) continue;
+				const sender = emailUtils.extractAddress(row.sendEmail) || fallbackSender;
+				if (!sender) continue;
 				const list = byAccount.get(row.accountId) || new Set();
-				list.add(String(row.sendEmail).trim().toLowerCase());
+				list.add(sender);
 				byAccount.set(row.accountId, list);
 			}
 
 			for (const [accountId, senders] of byAccount.entries()) {
 				const accountRow = await accountService.selectById(c, accountId);
-				if (!accountRow || accountRow.userId !== userId) continue;
+				if (!accountRow || Number(accountRow.userId) !== uid) continue;
 
 				let list = accountService.normalizeBlacklist(accountRow.blacklist);
 				if (isSpam === emailConst.isSpam.SPAM) {
@@ -1382,10 +1394,14 @@ const emailService = {
 				}
 
 				const blacklist = list.join(',');
-				await orm(c).update(account).set({ blacklist }).where(
-					and(eq(account.accountId, accountId), eq(account.userId, userId))
-				).run();
-				accountRow.blacklist = blacklist;
+				try {
+					await orm(c).update(account).set({ blacklist }).where(
+						and(eq(account.accountId, accountId), eq(account.userId, uid))
+					).run();
+					accountRow.blacklist = blacklist;
+				} catch (e) {
+					console.warn('setSpam blacklist update failed:', e?.message || e);
+				}
 			}
 		}
 
