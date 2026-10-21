@@ -115,6 +115,7 @@ import {ElMessage, ElMessageBox} from 'element-plus'
 import {emailDelete, emailRead, emailSetSpam, emailTranslate, emailTranslateTexts} from "@/request/email.js";
 import {Icon} from "@iconify/vue";
 import {useEmailStore} from "@/store/email.js";
+import {useUserStore} from "@/store/user.js";
 import {useAccountStore} from "@/store/account.js";
 import {formatDetailDate} from "@/utils/day.js";
 import {starAdd, starCancel} from "@/request/star.js";
@@ -132,6 +133,7 @@ const uiStore = useUiStore();
 const settingStore = useSettingStore();
 const accountStore = useAccountStore();
 const emailStore = useEmailStore();
+const userStore = useUserStore();
 const router = useRouter()
 const email = computed(() => emailStore.contentData.email || {
   emailId: 0,
@@ -517,6 +519,7 @@ function toggleSpam(isSpam) {
     } else if (emailStore.emailScroll && emailStore.emailScroll.refreshList) {
       emailStore.emailScroll.refreshList()
     }
+    userStore.refreshUserInfo()
     ElMessage({
       message: t(isSpam ? 'markAsSpamSuccess' : 'markAsNotSpamSuccess'),
       type: 'success',

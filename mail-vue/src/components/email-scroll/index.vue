@@ -282,6 +282,7 @@ import {computed, onActivated, reactive, ref, watch, nextTick, onMounted, onUnmo
 import {useEmailStore} from "@/store/email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useSettingStore} from "@/store/setting.js";
+import {useUserStore} from "@/store/user.js";
 import {sleep} from "@/utils/time-utils.js"
 import {fromNow, formatListDate} from "@/utils/day.js";
 import {useI18n} from "vue-i18n";
@@ -353,6 +354,7 @@ const {t} = useI18n()
 const settingStore = useSettingStore()
 const uiStore = useUiStore();
 const emailStore = useEmailStore();
+const userStore = useUserStore();
 const loading = ref(false);
 const followLoading = ref(false);
 const noLoading = ref(false);
@@ -720,6 +722,7 @@ function markSpam(email, isSpam) {
     } else if (emailStore.emailScroll && emailStore.emailScroll.refreshList) {
       emailStore.emailScroll.refreshList()
     }
+    userStore.refreshUserInfo()
     ElMessage({
       message: t(isSpam ? 'markAsSpamSuccess' : 'markAsNotSpamSuccess'),
       type: 'success',
