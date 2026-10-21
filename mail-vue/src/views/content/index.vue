@@ -14,11 +14,11 @@
         <Icon class="icon" icon="mdi:email-check-outline" width="20" height="20" @click="toggleSpam(0)"/>
       </el-tooltip>
       <span class="star" v-if="emailStore.contentData.showStar">
-        <el-tooltip effect="dark" :content="$t('star')">
-          <Icon class="icon" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20"/>
+        <el-tooltip effect="dark" :content="$t('star')" v-if="email.isStar">
+          <Icon class="icon" @click="changeStar" icon="fluent-color:star-16" width="20" height="20"/>
         </el-tooltip>
-        <el-tooltip effect="dark" :content="$t('star')">
-          <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18" height="18"/>
+        <el-tooltip effect="dark" :content="$t('star')" v-else>
+          <Icon class="icon" @click="changeStar" icon="solar:star-line-duotone" width="18" height="18"/>
         </el-tooltip>
       </span>
       <el-tooltip v-if="emailStore.contentData.showReply" effect="dark" :content="$t('reply')">

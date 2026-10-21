@@ -21,13 +21,11 @@
           v-model:status="params.opened"
           @search="applyFilter"
       />
-      <el-tooltip effect="dark" :content="$t('sortNewestFirst')">
-        <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-down-outline"
-              v-if="params.timeSort === 0" width="28" height="28"/>
+      <el-tooltip effect="dark" :content="$t('sortNewestFirst')" v-if="params.timeSort === 0">
+        <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-down-outline" width="28" height="28"/>
       </el-tooltip>
-      <el-tooltip effect="dark" :content="$t('sortOldestFirst')">
-        <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-up-outline" v-else
-              width="28" height="28"/>
+      <el-tooltip effect="dark" :content="$t('sortOldestFirst')" v-else>
+        <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-up-outline" width="28" height="28"/>
       </el-tooltip>
     </template>
   </emailScroll>
