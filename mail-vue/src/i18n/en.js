@@ -1,4 +1,5 @@
 const en = {
+    back: 'Back',
     inbox: 'Inbox',
     drafts: 'Drafts',
     sent: 'Sent',
@@ -316,6 +317,7 @@ const en = {
     noRecipientTitle: 'No Recipient',
     noRecipientDesc: 'Emails can be received even without a registered email address',
     preview: 'Preview',
+    download: 'Download',
     help: 'Help',
     document: 'Document',
     clearEmail: 'Email Cleanup',
@@ -353,6 +355,7 @@ const en = {
     details: 'Details',
     userDetails: 'User Details',
     markAsRead: 'Mark as Read',
+    refresh: 'Refresh',
     markAsSpam: 'Mark as spam & block',
     markAsNotSpam: 'Not spam',
     markAsSpamFail: 'Could not mark as spam, go back to the list and retry',

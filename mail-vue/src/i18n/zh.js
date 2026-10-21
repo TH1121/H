@@ -1,4 +1,5 @@
 const zh = {
+    back: '返回',
     inbox: '收件箱',
     drafts: '草稿箱',
     sent: '已发送',
@@ -316,6 +317,7 @@ const zh = {
     noRecipientTitle: '无人收件',
     noRecipientDesc: '即使没有注册的邮箱也能收到邮件',
     preview: '预览',
+    download: '下载',
     help: '帮助',
     document: '项目文档',
     clearEmail: '邮件清除',
@@ -353,6 +355,7 @@ const zh = {
     details: '详情',
     userDetails: '用户详情',
     markAsRead: '标为已读',
+    refresh: '刷新',
     markAsSpam: '标为垃圾并拉黑',
     markAsNotSpam: '移出垃圾邮件',
     markAsSpamFail: '无法标记垃圾邮件，请返回列表后重试',

@@ -1,8 +1,8 @@
 <template>
   <div class="box">
     <div class="header-actions">
-      <Icon class="icon" icon="material-symbols-light:arrow-back-ios-new" width="20" height="20" @click="handleBack"/>
-      <Icon v-perm="'email:delete'" class="icon" icon="uiw:delete" width="16" height="16" @click="handleDelete"/>
+      <Icon class="icon" icon="material-symbols-light:arrow-back-ios-new" width="20" height="20" :title="$t('back')" @click="handleBack"/>
+      <Icon v-perm="'email:delete'" class="icon" icon="uiw:delete" width="16" height="16" :title="$t('delete')" @click="handleDelete"/>
       <Icon
           v-if="canToggleSpam && !email.isSpam"
           class="icon"
@@ -22,11 +22,11 @@
           @click="toggleSpam(0)"
       />
       <span class="star" v-if="emailStore.contentData.showStar">
-        <Icon class="icon" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20"/>
-        <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18" height="18"/>
+        <Icon class="icon" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20" :title="$t('star')"/>
+        <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18" height="18" :title="$t('star')"/>
       </span>
-      <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openReply" icon="la:reply" width="21" height="21" />
-      <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openForward" icon="iconoir:arrow-up-right" width="20" height="20" />
+      <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openReply" icon="la:reply" width="21" height="21" :title="$t('reply')" />
+      <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openForward" icon="iconoir:arrow-up-right" width="20" height="20" :title="$t('forward')" />
     </div>
     <div></div>
     <el-scrollbar class="scrollbar">
@@ -84,9 +84,9 @@
                 </div>
                 <div class="att-size">{{ formatBytes(att.size) }}</div>
                 <div class="opt-icon att-icon">
-                  <Icon v-if="isImage(att.filename)" icon="hugeicons:view" width="22" height="22" @click="showImage(att.key)"/>
+                  <Icon v-if="isImage(att.filename)" icon="hugeicons:view" width="22" height="22" :title="$t('preview')" @click="showImage(att.key)"/>
                   <a :href="cvtR2Url(att.key)" download>
-                    <Icon icon="system-uicons:push-down" width="22" height="22"/>
+                    <Icon icon="system-uicons:push-down" width="22" height="22" :title="$t('download')"/>
                   </a>
                 </div>
               </div>
