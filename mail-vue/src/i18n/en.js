@@ -355,6 +355,7 @@ const en = {
     markAsRead: 'Mark as Read',
     markAsSpam: 'Mark as spam & block',
     markAsNotSpam: 'Not spam',
+    markAsSpamFail: 'Could not mark as spam, go back to the list and retry',
     markAsSpamSuccess: 'Moved to spam',
     markAsNotSpamSuccess: 'Removed from spam',
     star: 'Star',

@@ -355,6 +355,7 @@ const zh = {
     markAsRead: '标为已读',
     markAsSpam: '标为垃圾并拉黑',
     markAsNotSpam: '移出垃圾邮件',
+    markAsSpamFail: '无法标记垃圾邮件，请返回列表后重试',
     markAsSpamSuccess: '已移入垃圾邮件',
     markAsNotSpamSuccess: '已移出垃圾邮件',
     star: '星标',
