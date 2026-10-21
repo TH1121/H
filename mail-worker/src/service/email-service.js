@@ -23,6 +23,8 @@ import domainUtils from '../utils/domain-uitls';
 import account from "../entity/account";
 import { att } from '../entity/att';
 import telegramService from './telegram-service';
+import userContext from '../security/user-context';
+import permService from './perm-service';
 
 const emailService = {
 
@@ -1334,6 +1336,19 @@ const emailService = {
 			.filter(id => !Number.isNaN(id) && id > 0);
 	},
 
+	async canManageAllEmail(c, userId) {
+		const operator = userContext.getUser(c);
+		if (operator?.email && operator.email === c.env.admin) return true;
+		try {
+			const keys = await permService.userPermKeys(c, userId);
+			return keys.includes('*')
+				|| keys.includes('all-email:query')
+				|| keys.includes('all-email:delete');
+		} catch (e) {
+			return false;
+		}
+	},
+
 	async setSpam(c, params, userId) {
 		const emailIds = this.normalizeEmailIds(params.emailIds ?? params.emailId);
 		const uid = Number(userId);
@@ -1347,18 +1362,17 @@ const emailService = {
 			throw new BizError(t('emailNotFound'));
 		}
 
-		// Match read(): do not require isDel=NORMAL, so persisted/detail views still work
-		const rows = await orm(c).select({
+		// Load by id first (all-email may open another user's mail)
+		const found = await orm(c).select({
 			emailId: email.emailId,
 			accountId: email.accountId,
+			userId: email.userId,
 			sendEmail: email.sendEmail,
 			type: email.type,
-		}).from(email).where(
-			and(
-				eq(email.userId, uid),
-				inArray(email.emailId, emailIds),
-			)
-		).all();
+		}).from(email).where(inArray(email.emailId, emailIds)).all();
+
+		const manageAll = await this.canManageAllEmail(c, uid);
+		const rows = found.filter(row => Number(row.userId) === uid || manageAll);
 
 		if (!rows.length) {
 			throw new BizError(t('emailNotFound'));
@@ -1366,7 +1380,7 @@ const emailService = {
 
 		const ids = rows.map(row => row.emailId);
 		await orm(c).update(email).set({ isSpam }).where(
-			and(eq(email.userId, uid), inArray(email.emailId, ids))
+			inArray(email.emailId, ids)
 		).run();
 
 		if (updateBlacklist) {
@@ -1382,7 +1396,9 @@ const emailService = {
 
 			for (const [accountId, senders] of byAccount.entries()) {
 				const accountRow = await accountService.selectById(c, accountId);
-				if (!accountRow || Number(accountRow.userId) !== uid) continue;
+				if (!accountRow) continue;
+				// Owner can always update; admin/all-email can update others' account blacklist
+				if (Number(accountRow.userId) !== uid && !manageAll) continue;
 
 				let list = accountService.normalizeBlacklist(accountRow.blacklist);
 				if (isSpam === emailConst.isSpam.SPAM) {
@@ -1396,7 +1412,7 @@ const emailService = {
 				const blacklist = list.join(',');
 				try {
 					await orm(c).update(account).set({ blacklist }).where(
-						and(eq(account.accountId, accountId), eq(account.userId, uid))
+						eq(account.accountId, accountId)
 					).run();
 					accountRow.blacklist = blacklist;
 				} catch (e) {
